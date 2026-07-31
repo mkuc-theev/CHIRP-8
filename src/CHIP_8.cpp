@@ -244,6 +244,8 @@ void CHIP_8::stepForward() {
                     throw std::out_of_range(error.str());
             }
             break;
+        //TODO: Add all the 0xF--- opcodes, then figure things out from there
+        //(probably processor timing, sound, user input)
         default:
             std::stringstream error;
             error << "Unknown instruction 0x" << std::hex << instruction;
