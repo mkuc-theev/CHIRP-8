@@ -1,7 +1,10 @@
 #include "CHIP_8.h"
 
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <stdexcept>
 
 constexpr unsigned char FONT[] {
@@ -35,46 +38,75 @@ PC{0x200}, I {0}, delayTimer{0}, soundTimer{0}, keyEvent{0xFF} {
         V[i] = 0x00;
     }
 
-    //initialize display as all black
-    for (size_t i = 0; i < 32; ++i) {
-        for (size_t j = 0; j < 64; ++j) {
-            display[i][j] = false;
-        }
-    }
+    //Screen all black :thumbsup:
+    clearScreen();
 
     //initialize RAM with font data (apparently convention is 0x050 - 0x09F)
     std::copy_n(FONT, sizeof(FONT), RAM + 0x050);
 }
 
-unsigned char CHIP_8::readByte(size_t address) const {
-    if (address <= 0xFFF) {
-        return RAM[address];
-    } else {
-        throw std::out_of_range("Memory access out of range (readByte)");
+void CHIP_8::decrementDelayTimer() {
+    if (delayTimer > 0) delayTimer--;
+}
+
+void CHIP_8::decrementSoundTimer() {
+    if (soundTimer > 0) soundTimer--;
+}
+
+
+void CHIP_8::moveProgramCounter(uint16_t address) {
+    if (address > 0xFFF) throw std::out_of_range("Program counter moved out of range");
+
+    PC = address;
+}
+
+void CHIP_8::pushToAddressStack(uint16_t value) {
+    if (value > 0xFFF) throw std::out_of_range("Out-of-range address pushed onto stack");
+
+    stack.push(value);
+}
+
+uint16_t CHIP_8::popFromAddressStack() {
+    if (stack.empty()) throw std::logic_error("Stack is empty");
+
+    uint16_t value = stack.top();
+    stack.pop();
+    return value;
+}
+
+void CHIP_8::clearScreen() {
+    for (size_t i = 0; i < 32; ++i) {
+        for (size_t j = 0; j < 64; ++j) {
+            display[i][j] = false;
+        }
     }
+}
+
+unsigned char CHIP_8::readByte(size_t address) const {
+    if (address > 0xFFF) throw std::out_of_range("Memory access out of range (readByte)");
+
+    return RAM[address];
 }
 
 unsigned short int CHIP_8::readInstruction(size_t address) const {
-    if (address <= 0xFFE) {
-        unsigned short int instruction = RAM[address] << 8 | RAM[address + 1];
-        return instruction;
-    } else {
-        throw std::out_of_range("Memory access out of range (readInstruction)");
-    }
+    if (address > 0xFFE) throw std::out_of_range("Memory access out of range (readInstruction)");
+
+    unsigned short int instruction = RAM[address] << 8 | RAM[address + 1];
+    return instruction;
 }
 
 void CHIP_8::writeByte(size_t address, unsigned char value) {
-    if (address <= 0xFFF) {
-        RAM[address] = value;
-    } else {
-        throw std::out_of_range("Memory access out of range (writeByte)");
-    }
+    if (address > 0xFFF) throw std::out_of_range("Memory access out of range (writeByte)");
+
+    RAM[address] = value;
 }
 
 void CHIP_8::stepForward() {
     //Fetch the instruction and increment the program counter
     unsigned short int instruction = readInstruction(PC);
     PC += 2;
+
+    if (instruction == 0x0000) return;
 
     unsigned char opcode = instruction >> 12;
     unsigned char X = (instruction & 0x0F00) >> 8;
@@ -83,10 +115,93 @@ void CHIP_8::stepForward() {
     uint8_t NN = instruction & 0x00FF;
     uint16_t NNN = instruction & 0x0FFF;
 
+    unsigned char x;
+    unsigned char y;
+
     switch (opcode) {
+        case 0x0:
+            switch (N) {
+                case 0x0:   //0x00E0 Clear Screen
+                    clearScreen();
+                    break;
+                case 0xE:   //0x00EE Return from Subroutine
+                    PC = popFromAddressStack();
+                    break;
+                default:
+                    std::stringstream error;
+                    error << "Unknown instruction 0x" << std::hex << instruction;
+                    throw std::out_of_range(error.str());
+            }
+            break;
+        case 0x1:           //0x1NNN Jump
+            moveProgramCounter(NNN);
+            break;
+        case 0x2:           //0x2NNN Call Subroutine
+            pushToAddressStack(PC);
+            moveProgramCounter(NNN);
+            break;
+        case 0x6:           //0x6XNN Set
+            V[X] = NN;
+            break;
+        case 0x7:           //0x7XNN Add
+            V[X] += NN;
+            break;
+        case 0xA:           //0xANNN Set Index
+            I = NNN;
+            break;
+        case 0xD:           //0xDXYN Display
+            x = V[X] % 64;
+            y = V[Y] % 32;
+            V[0xF] = 0x00;
+            for (size_t row = 0; row < N; ++row) {
+                if (row + y > 31) break;
+                unsigned char spriteRow = RAM[I + row];
+                for (size_t column = 0; column < 8; ++column) {
+                    if (column + x > 63) break;
+                    if (spriteRow & 0x80) {
+                        if (display[row + y][column + x] && V[0xF] == 0x00) V[0xF] = 0x1;
+                        display[row + y][column + x] = !display[row + y][column + x];
+                    }
+                    spriteRow <<= 1;
+                }
+            }
+            break;
         default:
             std::stringstream error;
             error << "Unknown instruction 0x" << std::hex << instruction;
             throw std::out_of_range(error.str());
     }
+}
+
+void CHIP_8::importROM(const std::string &path) {
+    std::filesystem::path romPath{path};
+
+    auto length = std::filesystem::file_size(romPath);
+    if (length > 3584) throw std::out_of_range("ROM is too large");   //ROM injected at 0x200, can't exceed 3584B
+
+    std::ifstream rom(path, std::ios_base::binary);
+    if (!rom.is_open()) throw std::runtime_error("Could not open ROM file");
+
+    rom.read(reinterpret_cast<char*>(RAM + 0x200), length);
+
+    rom.close();
+}
+
+void CHIP_8::dumpDisplay() const {
+    for (size_t row = 0; row < 32; ++row) {
+        for (size_t column = 0; column < 64; ++column) {
+            std::cout << display[row][column];
+        }
+        std::cout << std::endl;
+    }
+}
+
+void CHIP_8::dumpRAM() const {
+    for (size_t i = 0x000; i <= 0xFFF; ++i) {
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(RAM[i]) << " ";
+    }
+}
+
+bool * CHIP_8::getDisplay() {
+    return *display;
 }

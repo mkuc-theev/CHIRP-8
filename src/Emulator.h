@@ -1,7 +1,3 @@
-//
-// Created by Theev on 31/07/2026.
-//
-
 #ifndef CHIRP_8_EMULATOR_H
 #define CHIRP_8_EMULATOR_H
 
@@ -30,12 +26,18 @@ const std::map<sf::Keyboard::Scan, unsigned char> keyMap {
     {sf::Keyboard::Scan::V, 0xF}
 };
 
+constexpr int SCALING_FACTOR = 20.0;
+
 class Emulator {
-    CHIP_8 core;
+    CHIP_8 emulationCore;
     sf::RenderWindow window;
+    std::string romPath;
 
+    public:
+    Emulator(int argc, char* argv[]);
 
+    void startEmulation();
+    void drawDisplay(const bool* display);
 };
-
 
 #endif //CHIRP_8_EMULATOR_H

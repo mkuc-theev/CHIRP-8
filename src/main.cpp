@@ -1,10 +1,12 @@
 #include <iostream>
 #include <SFML/Graphics.hpp>
-#include "CHIP_8.h"
-int main()
+#include "Emulator.h"
+
+int main(int argc, char** argv)
 {
 	try {
-		CHIP_8 chip_8{};
+		Emulator emulator(argc, argv);
+		emulator.startEmulation();
 	} catch (std::exception& e) {
 		std::cerr << e.what() << std::endl;
 		exit(1);
