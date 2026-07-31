@@ -2,13 +2,13 @@
 
 #include "SFML/Graphics/RectangleShape.hpp"
 
-Emulator::Emulator(int argc, char *argv[]) {
+Emulator::Emulator(int argc, char *argv[]) : emulationCore(oldBehavior), oldBehavior(false) {
     if (argc < 2) throw std::runtime_error("Please provide rom path");
     romPath = argv[1];
 
     window.create(sf::VideoMode(
-{64 * SCALING_FACTOR, 32 * SCALING_FACTOR}),
-    "CHIRP-8"
+                      {64 * SCALING_FACTOR, 32 * SCALING_FACTOR}),
+                  "CHIRP-8"
     );
 }
 

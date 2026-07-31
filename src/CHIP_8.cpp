@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
+#include <random>
 
 constexpr unsigned char FONT[] {
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -26,8 +27,9 @@ constexpr unsigned char FONT[] {
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 
-CHIP_8::CHIP_8() :
-PC{0x200}, I {0}, delayTimer{0}, soundTimer{0}, keyEvent{0xFF} {
+CHIP_8::CHIP_8(bool oldBehavior) :
+PC{0x200}, I {0}, delayTimer{0}, soundTimer{0}, keyEvent{0xFF},
+oldBehavior {oldBehavior}, gen(rd()), dist{0x00, 0xFF} {
     //zero out the ram so there's no garbage data
     for (size_t i = 0; i < 4096; ++i) {
         RAM[i] = 0x00;
@@ -118,13 +120,14 @@ void CHIP_8::stepForward() {
     unsigned char x;
     unsigned char y;
 
+    //help
     switch (opcode) {
         case 0x0:
-            switch (N) {
-                case 0x0:   //0x00E0 Clear Screen
+            switch (NNN) {
+                case 0x0E0:   //0x00E0 Clear Screen
                     clearScreen();
                     break;
-                case 0xE:   //0x00EE Return from Subroutine
+                case 0x0EE:   //0x00EE Return from Subroutine
                     PC = popFromAddressStack();
                     break;
                 default:
@@ -140,14 +143,74 @@ void CHIP_8::stepForward() {
             pushToAddressStack(PC);
             moveProgramCounter(NNN);
             break;
+        case 0x3:           //0x3XNN Branch if VX == NN
+            if (V[X] == NN) PC += 2;
+            break;
+        case 0x4:           //0x4XNN Branch if VX != NN
+            if (V[X] != NN) PC += 2;
+            break;
+        case 0x5:           //0x5XY0 Branch if VX == VY
+            if (V[X] == V[Y]) PC += 2;
+            break;
         case 0x6:           //0x6XNN Set
             V[X] = NN;
             break;
         case 0x7:           //0x7XNN Add
             V[X] += NN;
             break;
+        case 0x8:           //Logical and arithmetic instructions
+            switch (N) {
+                case 0x0:   //0x8XY0 Set
+                    V[X] = V[Y];
+                    break;
+                case 0x1:   //0x8XY1 Binary OR
+                    V[X] |= V[Y];
+                    break;
+                case 0x2:   //0x8XY2 Binary AND
+                    V[X] &= V[Y];
+                    break;
+                case 0x3:   //0x8XY3 Logical XOR
+                    V[X] ^= V[Y];
+                    break;
+                case 0x4:   //0x8XY4 Add (with carry flag)
+                    if (V[X] > 0xFF - V[Y]) V[0xF] = 1;
+                    V[X] += V[Y];
+                    break;
+                case 0x5:   //0x8XY5 Subtract VX - VY
+                    if (V[X] >= V[Y]) V[0xF] = 1;
+                    V[X] -= V[Y];
+                    break;
+                case 0x6:   //0x8XY6 Shift Right
+                    if (oldBehavior) V[X] = V[Y];
+                    V[0xF] = V[X] & 0x1;
+                    V[X] >>= 1;
+                    break;
+                case 0x7:   //0x8XY7 Subtract VY - VX
+                    if (V[Y] >= V[X]) V[0xF] = 1;
+                    V[X] = V[Y] - V[X];
+                    break;
+                case 0xE:   //0x8XY6 Shift Left
+                    if (oldBehavior) V[X] = V[Y];
+                    V[0xF] = V[X] >> 7;
+                    V[X] <<= 1;
+                    break;
+                default:
+                    std::stringstream error;
+                    error << "Unknown instruction 0x" << std::hex << instruction;
+                    throw std::out_of_range(error.str());
+            }
+        case 0x9:           //0x9XY0 Branch if VX != VY
+            if (V[X] != V[Y]) PC += 2;
+            break;
         case 0xA:           //0xANNN Set Index
             I = NNN;
+            break;
+        case 0xB:           //0xBNNN/0xBXNN Jump with Offset
+            if (oldBehavior) moveProgramCounter(NNN + V[0]);
+            moveProgramCounter(NNN + V[X]);
+            break;
+        case 0xC:           //0xCXNN Random
+            V[X] = dist(gen) & NN;
             break;
         case 0xD:           //0xDXYN Display
             x = V[X] % 64;

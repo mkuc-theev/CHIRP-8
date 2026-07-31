@@ -32,6 +32,7 @@ class Emulator {
     CHIP_8 emulationCore;
     sf::RenderWindow window;
     std::string romPath;
+    bool oldBehavior;
 
     public:
     Emulator(int argc, char* argv[]);

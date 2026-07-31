@@ -2,6 +2,7 @@
 #define CHIRP_8_CHIP_8_H
 
 #include <cstdint>
+#include <random>
 #include <stack>
 #include <string>
 
@@ -15,6 +16,10 @@ class CHIP_8 {
     unsigned char V[16];        //variable registers
     bool display[32][64];       //64x32 display matrix (monochromatic)
     unsigned char keyEvent;     //Currently pressed key, 0xFF if none
+    bool oldBehavior;           //Behavior of the 0x8XY6 and 0x8XYE instructions
+    std::random_device rd;      //seed source for RNG
+    std::mt19937 gen;           //random number generator engine seeded with rd
+    std::uniform_int_distribution<> dist;   //Bounds for RNG i guess?
 
     void moveProgramCounter(uint16_t address);
     void pushToAddressStack(uint16_t value);
@@ -25,7 +30,7 @@ class CHIP_8 {
     void writeByte(size_t address, unsigned char value);
 
     public:
-    CHIP_8();
+    CHIP_8(bool oldBehavior);
 
     void decrementDelayTimer();
     void decrementSoundTimer();
