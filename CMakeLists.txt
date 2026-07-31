@@ -15,7 +15,9 @@ FetchContent_MakeAvailable(SFML)
 add_executable(main src/main.cpp
         src/Chip_8.h
         src/Chip_8.h
-        src/Chip_8.cpp)
+        src/Chip_8.cpp
+        src/Emulator.cpp
+        src/Emulator.h)
 target_compile_features(main PRIVATE cxx_std_17)
 target_link_libraries(main PRIVATE SFML::Graphics)
 
