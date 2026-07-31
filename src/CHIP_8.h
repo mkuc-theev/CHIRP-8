@@ -9,9 +9,9 @@ class CHIP_8 {
     uint16_t PC;                //program counter
     uint16_t I;                 //index register
     std::stack<uint16_t> stack; //stack for subroutine addresses
-    uint8_t delayTimer;
-    uint8_t soundTimer;
-    unsigned char V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, VA, VB, VC, VD, VE, VF;   //variable registers
+    uint8_t delayTimer;         //delay timer (some sort of frame counter?)
+    uint8_t soundTimer;         //sound timer (computer beeps when this is above 0)
+    unsigned char V[16];        //variable registers
     bool display[32][64];       //64x32 display matrix (monochromatic)
     unsigned char keyEvent;     //Currently pressed key, 0xFF if none
 

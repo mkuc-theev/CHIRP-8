@@ -1,6 +1,7 @@
 #include "CHIP_8.h"
 
 #include <algorithm>
+#include <iomanip>
 #include <stdexcept>
 
 constexpr unsigned char FONT[] {
@@ -23,28 +24,31 @@ constexpr unsigned char FONT[] {
 };
 
 CHIP_8::CHIP_8() :
-PC{0x200}, I {0}, delayTimer{0}, soundTimer{0}, V0{0},
-V1{0}, V2{0}, V3{0}, V4{0}, V5{0}, V6{0}, V7{0}, V8{0},
-V9{0}, VA{0}, VB{0}, VC{0}, VD{0}, VE{0}, VF{0}, keyEvent{0xFF} {
+PC{0x200}, I {0}, delayTimer{0}, soundTimer{0}, keyEvent{0xFF} {
     //zero out the ram so there's no garbage data
     for (size_t i = 0; i < 4096; ++i) {
-        this->RAM[i] = 0;
+        RAM[i] = 0x00;
+    }
+
+    //initialize variable registers with zeroes
+    for (size_t i = 0; i < 16; ++i) {
+        V[i] = 0x00;
     }
 
     //initialize display as all black
     for (size_t i = 0; i < 32; ++i) {
         for (size_t j = 0; j < 64; ++j) {
-            this->display[i][j] = false;
+            display[i][j] = false;
         }
     }
 
     //initialize RAM with font data (apparently convention is 0x050 - 0x09F)
-    std::copy_n(FONT, sizeof(FONT), this->RAM + 0x050);
+    std::copy_n(FONT, sizeof(FONT), RAM + 0x050);
 }
 
 unsigned char CHIP_8::readByte(size_t address) const {
     if (address <= 0xFFF) {
-        return this->RAM[address];
+        return RAM[address];
     } else {
         throw std::out_of_range("Memory access out of range (readByte)");
     }
@@ -52,7 +56,7 @@ unsigned char CHIP_8::readByte(size_t address) const {
 
 unsigned short int CHIP_8::readInstruction(size_t address) const {
     if (address <= 0xFFE) {
-        unsigned short int instruction = this->RAM[address] << 8 | this->RAM[address + 1];
+        unsigned short int instruction = RAM[address] << 8 | RAM[address + 1];
         return instruction;
     } else {
         throw std::out_of_range("Memory access out of range (readInstruction)");
@@ -61,12 +65,28 @@ unsigned short int CHIP_8::readInstruction(size_t address) const {
 
 void CHIP_8::writeByte(size_t address, unsigned char value) {
     if (address <= 0xFFF) {
-        this->RAM[address] = value;
+        RAM[address] = value;
     } else {
         throw std::out_of_range("Memory access out of range (writeByte)");
     }
 }
 
 void CHIP_8::stepForward() {
-    //Fetch the instruction
+    //Fetch the instruction and increment the program counter
+    unsigned short int instruction = readInstruction(PC);
+    PC += 2;
+
+    unsigned char opcode = instruction >> 12;
+    unsigned char X = (instruction & 0x0F00) >> 8;
+    unsigned char Y = (instruction & 0x00F0) >> 4;
+    unsigned char N = (instruction & 0x000F);
+    uint8_t NN = instruction & 0x00FF;
+    uint16_t NNN = instruction & 0x0FFF;
+
+    switch (opcode) {
+        default:
+            std::stringstream error;
+            error << "Unknown instruction 0x" << std::hex << instruction;
+            throw std::out_of_range(error.str());
+    }
 }
