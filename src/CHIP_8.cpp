@@ -199,6 +199,7 @@ void CHIP_8::stepForward() {
                     error << "Unknown instruction 0x" << std::hex << instruction;
                     throw std::out_of_range(error.str());
             }
+            break;
         case 0x9:           //0x9XY0 Branch if VX != VY
             if (V[X] != V[Y]) PC += 2;
             break;
@@ -227,6 +228,20 @@ void CHIP_8::stepForward() {
                     }
                     spriteRow <<= 1;
                 }
+            }
+            break;
+        case 0xE:           //Skip if key
+            switch (NN) {
+                case 0x9E:  //0xEX9E Skip if key pressed
+                    if (keyEvent == V[X]) PC += 2;
+                    break;
+                case 0xA1:   //0xEXA1 Skip if key not pressed
+                    if (keyEvent != V[X]) PC += 2;
+                    break;
+                default:
+                    std::stringstream error;
+                    error << "Unknown instruction 0x" << std::hex << instruction;
+                    throw std::out_of_range(error.str());
             }
             break;
         default:
