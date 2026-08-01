@@ -28,21 +28,9 @@ constexpr unsigned char FONT[] {
 };
 
 CHIP_8::CHIP_8(bool oldBehavior) :
-PC{0x200}, I {0}, delayTimer{0}, soundTimer{0}, keyEvent{0xFF},
-oldBehavior {oldBehavior}, gen(rd()), dist{0x00, 0xFF} {
-    //zero out the ram so there's no garbage data
-    for (size_t i = 0; i < 4096; ++i) {
-        RAM[i] = 0x00;
-    }
-
-    //initialize variable registers with zeroes
-    for (size_t i = 0; i < 16; ++i) {
-        V[i] = 0x00;
-    }
-
-    //Screen all black :thumbsup:
-    clearScreen();
-
+RAM{}, PC{0x200}, I {0}, delayTimer{0}, soundTimer{0},
+V{}, display{}, keyEvent{0xFF},oldBehavior {oldBehavior},
+gen(rd()), dist{0x00, 0xFF} {
     //initialize RAM with font data (apparently convention is 0x050 - 0x09F)
     std::copy_n(FONT, sizeof(FONT), RAM + 0x050);
 }
@@ -77,9 +65,9 @@ uint16_t CHIP_8::popFromAddressStack() {
 }
 
 void CHIP_8::clearScreen() {
-    for (size_t i = 0; i < 32; ++i) {
-        for (size_t j = 0; j < 64; ++j) {
-            display[i][j] = false;
+    for (auto & i : display) {
+        for (bool & j : i) {
+            j = false;
         }
     }
 }
@@ -265,15 +253,15 @@ void CHIP_8::importROM(const std::string &path) {
     std::ifstream rom(path, std::ios_base::binary);
     if (!rom.is_open()) throw std::runtime_error("Could not open ROM file");
 
-    rom.read(reinterpret_cast<char*>(RAM + 0x200), length);
+    rom.read(reinterpret_cast<char*>(RAM + 0x200), static_cast<std::streamsize>(length));
 
     rom.close();
 }
 
 void CHIP_8::dumpDisplay() const {
-    for (size_t row = 0; row < 32; ++row) {
-        for (size_t column = 0; column < 64; ++column) {
-            std::cout << display[row][column];
+    for (const auto & row : display) {
+        for (bool column : row) {
+            std::cout << column;
         }
         std::cout << std::endl;
     }
