@@ -207,8 +207,11 @@ void CHIP_8::stepForward() {
             I = NNN;
             break;
         case 0xB:           //0xBNNN/0xBXNN Jump with Offset
-            if (oldBehavior) moveProgramCounter(NNN + V[0]);
-            moveProgramCounter(NNN + V[X]);
+            if (oldBehavior) {
+                moveProgramCounter(NNN + V[0]);
+            } else {
+                moveProgramCounter(NNN + V[X]);
+            }
             break;
         case 0xC:           //0xCXNN Random
             V[X] = dist(gen) & NN;
