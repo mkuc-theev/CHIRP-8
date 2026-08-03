@@ -16,7 +16,9 @@ class CHIP_8 {
     uint8_t soundTimer;         //sound timer (computer beeps when this is above 0)
     unsigned char V[16];        //variable registers
     bool display[32][64];       //64x32 display matrix (monochromatic)
-    unsigned char keyEvent;     //Currently pressed key, 0xFF if none
+    uint16_t keypad;
+    uint16_t oldKeypad;
+    unsigned char awaitedKey;
     bool oldBehavior;           //Behavior of the 0x8XY6 and 0x8XYE instructions
     std::random_device rd;      //seed source for RNG
     std::mt19937 gen;           //random number generator engine seeded with rd
@@ -24,6 +26,10 @@ class CHIP_8 {
 
     void jumpProgramCounter(uint16_t address);
     void pushToAddressStack(uint16_t value);
+    [[nodiscard]] bool keyIsPressed(uint16_t key) const;
+    [[nodiscard]] bool keyWasPressed(uint16_t key) const;
+    [[nodiscard]] unsigned char pollReleasedKey() const;
+    unsigned char pollPressedKey() const;
     uint16_t popFromAddressStack();
     void clearScreen();
     [[nodiscard]] unsigned char readByte(size_t address) const;
@@ -42,11 +48,10 @@ class CHIP_8 {
     void dumpRAM() const;
 
     bool* getDisplay();
-    unsigned char* getKeyEvent();
     uint8_t* getSoundTimer();
 
-    void setKeyEvent(unsigned char newKeyEvent);
     void setSoundTimer(unsigned char newSoundTimer);
+    void toggleKey(uint16_t keycode);
 };
 
 #endif //CHIRP_8_CHIP_8_H

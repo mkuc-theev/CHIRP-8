@@ -32,8 +32,8 @@ constexpr size_t ROM_OFFSET = 0x200;
 
 CHIP_8::CHIP_8(bool oldBehavior) :
 RAM{}, PC{ROM_OFFSET}, I {0}, delayTimer{0}, soundTimer{0},
-V{}, display{}, keyEvent{0xFF},oldBehavior {false},
-gen(rd()), dist{0x00, 0xFF} {
+V{}, display{}, keypad{0}, oldKeypad{0}, awaitedKey {0xFF},
+oldBehavior {false}, gen(rd()), dist{0x00, 0xFF} {
     //initialize RAM with font data (apparently convention is 0x050 - 0x09F)
     std::copy_n(FONT, sizeof(FONT), RAM + FONT_OFFSET);
 }
@@ -47,22 +47,42 @@ void CHIP_8::decrementSoundTimer() {
 }
 
 
-void CHIP_8::jumpProgramCounter(uint16_t address) {
+void CHIP_8::jumpProgramCounter(const uint16_t address) {
     if (address > 0xFFF) throw std::out_of_range("Program counter moved out of range");
 
     PC = address;
 }
 
-void CHIP_8::pushToAddressStack(uint16_t value) {
+void CHIP_8::pushToAddressStack(const uint16_t value) {
     if (value > 0xFFF) throw std::out_of_range("Out-of-range address pushed onto stack");
 
     stack.push(value);
 }
 
+bool CHIP_8::keyIsPressed(const uint16_t key) const {
+    if (key > 0xF) throw std::out_of_range("Keypad button code out of range");
+
+    return keypad >> key & 1;
+}
+
+bool CHIP_8::keyWasPressed(const uint16_t key) const {
+    if (key > 0xF) throw std::out_of_range("Keypad button code out of range");
+
+    return oldKeypad >> key & 1;
+}
+
+unsigned char CHIP_8::pollReleasedKey() const {
+    return std::countr_zero(static_cast<uint16_t>((oldKeypad ^ keypad) & oldKeypad));
+}
+
+unsigned char CHIP_8::pollPressedKey() const {
+    return std::countr_zero(static_cast<uint16_t>((oldKeypad ^ keypad) & keypad));
+}
+
 uint16_t CHIP_8::popFromAddressStack() {
     if (stack.empty()) throw std::logic_error("Stack is empty");
 
-    uint16_t value = stack.top();
+    const uint16_t value = stack.top();
     stack.pop();
     return value;
 }
@@ -75,26 +95,26 @@ void CHIP_8::clearScreen() {
     }
 }
 
-unsigned char CHIP_8::readByte(size_t address) const {
+unsigned char CHIP_8::readByte(const size_t address) const {
     if (address > 0xFFF) throw std::out_of_range("Memory access out of range (readByte)");
 
     return RAM[address];
 }
 
-unsigned short int CHIP_8::readInstruction(size_t address) const {
+unsigned short int CHIP_8::readInstruction(const size_t address) const {
     if (address > 0xFFE) throw std::out_of_range("Memory access out of range (readInstruction)");
 
     unsigned short int instruction = RAM[address] << 8 | RAM[address + 1];
     return instruction;
 }
 
-void CHIP_8::writeByte(size_t address, unsigned char value) {
+void CHIP_8::writeByte(const size_t address, const unsigned char value) {
     if (address > 0xFFF) throw std::out_of_range("Memory access out of range (writeByte)");
 
     RAM[address] = value;
 }
 
-void CHIP_8::drawSprite(unsigned char X, unsigned char Y, unsigned char N) {
+void CHIP_8::drawSprite(const unsigned char X, const unsigned char Y, const unsigned char N) {
         //0xDXYN Display
         unsigned char x = V[X] % 64;
         unsigned char y = V[Y] % 32;
@@ -130,6 +150,7 @@ void CHIP_8::stepForward() {
     uint16_t NNN = instruction & 0x0FFF;
 
     bool carry;
+    uint16_t releasedKey;
 
     //Decode and execute opcode
     switch (opcode) {
@@ -238,10 +259,10 @@ void CHIP_8::stepForward() {
         case 0xE:           //Skip if key
             switch (NN) {
                 case 0x9E:  //0xEX9E Skip if key pressed
-                    if (keyEvent == V[X]) PC += 2;
+                    if (keyIsPressed(V[X])) jumpProgramCounter(PC + 2);
                     break;
                 case 0xA1:   //0xEXA1 Skip if key not pressed
-                    if (keyEvent != V[X]) PC += 2;
+                    if (!keyIsPressed(V[X])) jumpProgramCounter(PC + 2);
                     break;
                 default:
                     std::stringstream error;
@@ -266,10 +287,13 @@ void CHIP_8::stepForward() {
                     V[0xF] = carry;
                     break;
                 case 0x0A:  //0xFX0A Get key
-                    if (keyEvent <= 0xF) {
-                        V[X] = keyEvent;
+                    if (awaitedKey > 0xF) awaitedKey = pollPressedKey();
+                    releasedKey = pollReleasedKey();
+                    if (releasedKey <= 0xF && releasedKey == awaitedKey) {
+                        V[X] = releasedKey;
+                        awaitedKey = 0xFF;
                     } else {
-                        PC -= 2;
+                        jumpProgramCounter(PC - 2);
                     }
                     break;
                 case 0x29:  //0xFX29 Font character
@@ -312,9 +336,9 @@ void CHIP_8::stepForward() {
 }
 
 void CHIP_8::importROM(const std::string &path) {
-    std::filesystem::path romPath{path};
+    const std::filesystem::path romPath{path};
 
-    auto length = std::filesystem::file_size(romPath);
+    const auto length = std::filesystem::file_size(romPath);
     if (length > 0xFFF - ROM_OFFSET + 1) throw std::out_of_range("ROM is too large");
 
     std::ifstream rom(path, std::ios_base::binary);
@@ -327,7 +351,7 @@ void CHIP_8::importROM(const std::string &path) {
 
 void CHIP_8::dumpDisplay() const {
     for (const auto & row : display) {
-        for (bool column : row) {
+        for (const bool column : row) {
             std::cout << column;
         }
         std::cout << std::endl;
@@ -344,19 +368,18 @@ bool * CHIP_8::getDisplay() {
     return *display;
 }
 
-unsigned char * CHIP_8::getKeyEvent() {
-    return &keyEvent;
-}
 
 uint8_t * CHIP_8::getSoundTimer() {
     return &soundTimer;
 }
 
-void CHIP_8::setKeyEvent(unsigned char newKeyEvent) {
-    keyEvent = newKeyEvent;
+
+void CHIP_8::setSoundTimer(const unsigned char newSoundTimer) {
+    soundTimer = newSoundTimer;
 }
 
-void CHIP_8::setSoundTimer(unsigned char newSoundTimer) {
-    soundTimer = newSoundTimer;
+void CHIP_8::toggleKey(const uint16_t keycode) {
+    oldKeypad = keypad;
+    keypad ^= keycode;
 }
 

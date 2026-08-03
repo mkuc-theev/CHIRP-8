@@ -4,23 +4,23 @@
 
 #include "SFML/Graphics/RectangleShape.hpp"
 
-const std::map<sf::Keyboard::Scan, unsigned char> keyMap {
-    {sf::Keyboard::Scan::Num1, 0x1},
-    {sf::Keyboard::Scan::Num2, 0x2},
-    {sf::Keyboard::Scan::Num3, 0x3},
-    {sf::Keyboard::Scan::Num4, 0xC},
-    {sf::Keyboard::Scan::Q, 0x4},
-    {sf::Keyboard::Scan::W, 0x5},
-    {sf::Keyboard::Scan::E, 0x6},
-    {sf::Keyboard::Scan::R, 0xD},
-    {sf::Keyboard::Scan::A, 0x7},
-    {sf::Keyboard::Scan::S, 0x8},
-    {sf::Keyboard::Scan::D, 0x9},
-    {sf::Keyboard::Scan::F, 0xE},
-    {sf::Keyboard::Scan::Z, 0xA},
-    {sf::Keyboard::Scan::X, 0x0},
-    {sf::Keyboard::Scan::C, 0xB},
-    {sf::Keyboard::Scan::V, 0xF}
+const std::map<sf::Keyboard::Scan, uint16_t> keyMap {
+    {sf::Keyboard::Scan::Num1,  0b0000000000000010},
+    {sf::Keyboard::Scan::Num2,  0b0000000000000100},
+    {sf::Keyboard::Scan::Num3,  0b0000000000001000},
+    {sf::Keyboard::Scan::Num4,  0b0001000000000000},
+    {sf::Keyboard::Scan::Q,     0b0000000000010000},
+    {sf::Keyboard::Scan::W,     0b0000000000100000},
+    {sf::Keyboard::Scan::E,     0b0000000001000000},
+    {sf::Keyboard::Scan::R,     0b0010000000000000},
+    {sf::Keyboard::Scan::A,     0b0000000010000000},
+    {sf::Keyboard::Scan::S,     0b0000000100000000},
+    {sf::Keyboard::Scan::D,     0b0000001000000000},
+    {sf::Keyboard::Scan::F,     0b0100000000000000},
+    {sf::Keyboard::Scan::Z,     0b0000010000000000},
+    {sf::Keyboard::Scan::X,     0b0000000000000001},
+    {sf::Keyboard::Scan::C,     0b0000100000000000},
+    {sf::Keyboard::Scan::V,     0b1000000000000000}
 };
 
 constexpr int SCALING_FACTOR = 20.0;
@@ -35,6 +35,7 @@ Emulator::Emulator(int argc, char *argv[]) : emulationCore(false), oldBehavior(f
                       {64 * SCALING_FACTOR, 32 * SCALING_FACTOR}),
                   "CHIRP-8"
     );
+    window.setKeyRepeatEnabled(false);
 }
 
 void Emulator::startEmulation() {
@@ -49,11 +50,11 @@ void Emulator::startEmulation() {
             }
             if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
                 if (keyMap.contains(keyPressed->scancode)) {
-                    emulationCore.setKeyEvent(keyMap.at(keyPressed->scancode));
+                    emulationCore.toggleKey(keyMap.at(keyPressed->scancode));
                 }
             }
-            if (event->is<sf::Event::KeyReleased>()) {
-                emulationCore.setKeyEvent(0xFF);
+            if (const auto* keyReleased = event->getIf<sf::Event::KeyReleased>()) {
+                emulationCore.toggleKey(keyMap.at(keyReleased->scancode));
             }
         }
         emulationCore.decrementDelayTimer();
