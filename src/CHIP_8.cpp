@@ -28,9 +28,10 @@ constexpr unsigned char FONT[] {
 };
 
 constexpr size_t FONT_OFFSET = 0x50;
+constexpr size_t ROM_OFFSET = 0x200;
 
 CHIP_8::CHIP_8(bool oldBehavior) :
-RAM{}, PC{0x200}, I {0}, delayTimer{0}, soundTimer{0},
+RAM{}, PC{ROM_OFFSET}, I {0}, delayTimer{0}, soundTimer{0},
 V{}, display{}, keyEvent{0xFF},oldBehavior {oldBehavior},
 gen(rd()), dist{0x00, 0xFF} {
     //initialize RAM with font data (apparently convention is 0x050 - 0x09F)
@@ -302,12 +303,12 @@ void CHIP_8::importROM(const std::string &path) {
     std::filesystem::path romPath{path};
 
     auto length = std::filesystem::file_size(romPath);
-    if (length > 3584) throw std::out_of_range("ROM is too large");   //ROM injected at 0x200, can't exceed 3584B
+    if (length > 0xFFF - ROM_OFFSET + 1) throw std::out_of_range("ROM is too large");
 
     std::ifstream rom(path, std::ios_base::binary);
     if (!rom.is_open()) throw std::runtime_error("Could not open ROM file");
 
-    rom.read(reinterpret_cast<char*>(RAM + 0x200), static_cast<std::streamsize>(length));
+    rom.read(reinterpret_cast<char*>(RAM + ROM_OFFSET), static_cast<std::streamsize>(length));
 
     rom.close();
 }

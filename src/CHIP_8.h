@@ -30,7 +30,7 @@ class CHIP_8 {
     void writeByte(size_t address, unsigned char value);
 
     public:
-    CHIP_8(bool oldBehavior);
+    explicit CHIP_8(bool oldBehavior);
 
     void decrementDelayTimer();
     void decrementSoundTimer();
@@ -40,6 +40,8 @@ class CHIP_8 {
     void dumpRAM() const;
 
     bool* getDisplay();
+    unsigned char* getKeyEvent();
+    uint8_t* getSoundTimer();
 };
 
 #endif //CHIRP_8_CHIP_8_H
