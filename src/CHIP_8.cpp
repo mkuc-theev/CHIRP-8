@@ -164,11 +164,11 @@ void CHIP_8::stepForward() {
                     V[X] ^= V[Y];
                     break;
                 case 0x4:   //0x8XY4 Add (with carry flag)
-                    if (V[X] > 0xFF - V[Y]) V[0xF] = 1;
+                    V[0xF] = (V[X] > 0xFF - V[Y]) ? 1 : 0;
                     V[X] += V[Y];
                     break;
                 case 0x5:   //0x8XY5 Subtract VX - VY
-                    if (V[X] >= V[Y]) V[0xF] = 1;
+                    V[0xF] = (V[X] >= V[Y]) ? 1 : 0;
                     V[X] -= V[Y];
                     break;
                 case 0x6:   //0x8XY6 Shift Right
@@ -177,10 +177,10 @@ void CHIP_8::stepForward() {
                     V[X] >>= 1;
                     break;
                 case 0x7:   //0x8XY7 Subtract VY - VX
-                    if (V[Y] >= V[X]) V[0xF] = 1;
+                    V[0xF] = (V[Y] >= V[X]) ? 1 : 0;
                     V[X] = V[Y] - V[X];
                     break;
-                case 0xE:   //0x8XY6 Shift Left
+                case 0xE:   //0x8XYE Shift Left
                     if (oldBehavior) V[X] = V[Y];
                     V[0xF] = V[X] >> 7;
                     V[X] <<= 1;
@@ -210,14 +210,14 @@ void CHIP_8::stepForward() {
         case 0xD:           //0xDXYN Display
             x = V[X] % 64;
             y = V[Y] % 32;
-            V[0xF] = 0x00;
+            V[0xF] = 0;
             for (size_t row = 0; row < N; ++row) {
                 if (row + y > 31) break;
                 unsigned char spriteRow = RAM[I + row];
                 for (size_t column = 0; column < 8; ++column) {
                     if (column + x > 63) break;
                     if (spriteRow & 0x80) {
-                        if (display[row + y][column + x] && V[0xF] == 0x00) V[0xF] = 0x1;
+                        if (display[row + y][column + x] && V[0xF] == 0) V[0xF] = 1;
                         display[row + y][column + x] = !display[row + y][column + x];
                     }
                     spriteRow <<= 1;
@@ -250,7 +250,7 @@ void CHIP_8::stepForward() {
                     soundTimer = V[X];
                     break;
                 case 0x1E:  //0xFX1E Add to index
-                    if (!oldBehavior && V[X] > 0xFFF - I) V[0xF] = 1;
+                    V[0xF] = (!oldBehavior && V[X] > 0xFFF - I) ? 1 : 0;
                     I += V[X];
                     break;
                 case 0x0A:  //0xFX0A Get key
