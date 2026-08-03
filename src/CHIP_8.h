@@ -5,6 +5,7 @@
 #include <random>
 #include <stack>
 #include <string>
+//todo fix keypad, figure out audio
 
 class CHIP_8 {
     unsigned char RAM[4096];    //memory

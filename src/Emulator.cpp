@@ -5,27 +5,29 @@
 #include "SFML/Graphics/RectangleShape.hpp"
 
 const std::map<sf::Keyboard::Scan, unsigned char> keyMap {
-    {sf::Keyboard::Scan::Num1, 0x0},
-    {sf::Keyboard::Scan::Num2, 0x1},
-    {sf::Keyboard::Scan::Num3, 0x2},
-    {sf::Keyboard::Scan::Num4, 0x3},
+    {sf::Keyboard::Scan::Num1, 0x1},
+    {sf::Keyboard::Scan::Num2, 0x2},
+    {sf::Keyboard::Scan::Num3, 0x3},
+    {sf::Keyboard::Scan::Num4, 0xC},
     {sf::Keyboard::Scan::Q, 0x4},
     {sf::Keyboard::Scan::W, 0x5},
     {sf::Keyboard::Scan::E, 0x6},
-    {sf::Keyboard::Scan::R, 0x7},
-    {sf::Keyboard::Scan::A, 0x8},
-    {sf::Keyboard::Scan::S, 0x9},
-    {sf::Keyboard::Scan::D, 0xA},
-    {sf::Keyboard::Scan::F, 0xB},
-    {sf::Keyboard::Scan::Z, 0xC},
-    {sf::Keyboard::Scan::X, 0xD},
-    {sf::Keyboard::Scan::C, 0xE},
+    {sf::Keyboard::Scan::R, 0xD},
+    {sf::Keyboard::Scan::A, 0x7},
+    {sf::Keyboard::Scan::S, 0x8},
+    {sf::Keyboard::Scan::D, 0x9},
+    {sf::Keyboard::Scan::F, 0xE},
+    {sf::Keyboard::Scan::Z, 0xA},
+    {sf::Keyboard::Scan::X, 0x0},
+    {sf::Keyboard::Scan::C, 0xB},
     {sf::Keyboard::Scan::V, 0xF}
 };
 
 constexpr int SCALING_FACTOR = 20.0;
 
-Emulator::Emulator(int argc, char *argv[]) : emulationCore(oldBehavior), oldBehavior(false) {
+constexpr int INSTRUCTIONS_PER_FRAME = 11;
+
+Emulator::Emulator(int argc, char *argv[]) : emulationCore(false), oldBehavior(false) {
     if (argc < 2) throw std::runtime_error("Please provide rom path");
     romPath = argv[1];
 
@@ -54,9 +56,13 @@ void Emulator::startEmulation() {
                 emulationCore.setKeyEvent(0xFF);
             }
         }
-
-        emulationCore.stepForward();
+        emulationCore.decrementDelayTimer();
+        emulationCore.decrementSoundTimer();
+        for (int i = 0; i < INSTRUCTIONS_PER_FRAME; ++i) {
+            emulationCore.stepForward();
+        }
         //emulationCore.dumpDisplay();
+        window.clear(sf::Color::Black);
         drawDisplay(emulationCore.getDisplay());
         window.display();
     }

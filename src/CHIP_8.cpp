@@ -285,7 +285,7 @@ void CHIP_8::stepForward() {
                         if (oldBehavior) {
                             writeByte(I++, V[n]);
                         } else {
-                            writeByte(I+ 1, V[n]);
+                            writeByte(I + n, V[n]);
                         }
                     }
                     break;
