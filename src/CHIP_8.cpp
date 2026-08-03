@@ -331,3 +331,20 @@ void CHIP_8::dumpRAM() const {
 bool * CHIP_8::getDisplay() {
     return *display;
 }
+
+unsigned char * CHIP_8::getKeyEvent() {
+    return &keyEvent;
+}
+
+uint8_t * CHIP_8::getSoundTimer() {
+    return &soundTimer;
+}
+
+void CHIP_8::setKeyEvent(unsigned char newKeyEvent) {
+    keyEvent = newKeyEvent;
+}
+
+void CHIP_8::setSoundTimer(unsigned char newSoundTimer) {
+    soundTimer = newSoundTimer;
+}
+

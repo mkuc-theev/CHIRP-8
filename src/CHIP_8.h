@@ -42,6 +42,9 @@ class CHIP_8 {
     bool* getDisplay();
     unsigned char* getKeyEvent();
     uint8_t* getSoundTimer();
+
+    void setKeyEvent(unsigned char newKeyEvent);
+    void setSoundTimer(unsigned char newSoundTimer);
 };
 
 #endif //CHIRP_8_CHIP_8_H
