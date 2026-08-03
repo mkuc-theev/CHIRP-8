@@ -1,6 +1,29 @@
 #include "Emulator.h"
 
+#include <map>
+
 #include "SFML/Graphics/RectangleShape.hpp"
+
+const std::map<sf::Keyboard::Scan, unsigned char> keyMap {
+    {sf::Keyboard::Scan::Num1, 0x0},
+    {sf::Keyboard::Scan::Num2, 0x1},
+    {sf::Keyboard::Scan::Num3, 0x2},
+    {sf::Keyboard::Scan::Num4, 0x3},
+    {sf::Keyboard::Scan::Q, 0x4},
+    {sf::Keyboard::Scan::W, 0x5},
+    {sf::Keyboard::Scan::E, 0x6},
+    {sf::Keyboard::Scan::R, 0x7},
+    {sf::Keyboard::Scan::A, 0x8},
+    {sf::Keyboard::Scan::S, 0x9},
+    {sf::Keyboard::Scan::D, 0xA},
+    {sf::Keyboard::Scan::F, 0xB},
+    {sf::Keyboard::Scan::Z, 0xC},
+    {sf::Keyboard::Scan::X, 0xD},
+    {sf::Keyboard::Scan::C, 0xE},
+    {sf::Keyboard::Scan::V, 0xF}
+};
+
+constexpr int SCALING_FACTOR = 20.0;
 
 Emulator::Emulator(int argc, char *argv[]) : emulationCore(oldBehavior), oldBehavior(false) {
     if (argc < 2) throw std::runtime_error("Please provide rom path");
@@ -19,8 +42,17 @@ void Emulator::startEmulation() {
     {
         while (const std::optional event = window.pollEvent())
         {
-            if (event->is<sf::Event::Closed>())
+            if (event->is<sf::Event::Closed>()) {
                 window.close();
+            }
+            if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
+                if (keyMap.contains(keyPressed->scancode)) {
+                    emulationCore.setKeyEvent(keyMap.at(keyPressed->scancode));
+                }
+            }
+            if (event->is<sf::Event::KeyReleased>()) {
+                emulationCore.setKeyEvent(0xFF);
+            }
         }
 
         emulationCore.stepForward();

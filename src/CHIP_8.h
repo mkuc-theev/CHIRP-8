@@ -16,7 +16,7 @@ class CHIP_8 {
     unsigned char V[16];        //variable registers
     bool display[32][64];       //64x32 display matrix (monochromatic)
     unsigned char keyEvent;     //Currently pressed key, 0xFF if none
-    bool oldBehavior;           //Behavior of the 0x8XY6 and 0x8XYE instructions
+    bool oldBehavior = false;           //Behavior of the 0x8XY6 and 0x8XYE instructions
     std::random_device rd;      //seed source for RNG
     std::mt19937 gen;           //random number generator engine seeded with rd
     std::uniform_int_distribution<> dist;   //Bounds for RNG i guess?
