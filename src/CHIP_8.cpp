@@ -47,7 +47,7 @@ void CHIP_8::decrementSoundTimer() {
 }
 
 
-void CHIP_8::moveProgramCounter(uint16_t address) {
+void CHIP_8::jumpProgramCounter(uint16_t address) {
     if (address > 0xFFF) throw std::out_of_range("Program counter moved out of range");
 
     PC = address;
@@ -94,13 +94,34 @@ void CHIP_8::writeByte(size_t address, unsigned char value) {
     RAM[address] = value;
 }
 
+void CHIP_8::drawSprite(unsigned char X, unsigned char Y, unsigned char N) {
+        //0xDXYN Display
+        unsigned char x = V[X] % 64;
+        unsigned char y = V[Y] % 32;
+        V[0xF] = 0;
+        for (size_t row = 0; row < N; ++row) {
+            if (row + y > 31) break;
+            unsigned char spriteRow = readByte(I + row);
+            for (size_t column = 0; column < 8; ++column) {
+                if (column + x > 63) break;
+                if (spriteRow & 0b10000000) {
+                    if (display[row + y][column + x] && V[0xF] == 0) V[0xF] = 1;
+                    display[row + y][column + x] = !display[row + y][column + x];
+                }
+                spriteRow <<= 1;
+            }
+        }
+}
+
 void CHIP_8::stepForward() {
     //Fetch the instruction and increment the program counter
     unsigned short int instruction = readInstruction(PC);
-    PC += 2;
+    jumpProgramCounter(PC + 2);
 
+    //Catch NOP
     if (instruction == 0x0000) return;
 
+    //Extract important bytes using bit masks and shifts
     unsigned char opcode = instruction >> 12;
     unsigned char X = (instruction & 0x0F00) >> 8;
     unsigned char Y = (instruction & 0x00F0) >> 4;
@@ -108,8 +129,6 @@ void CHIP_8::stepForward() {
     uint8_t NN = instruction & 0x00FF;
     uint16_t NNN = instruction & 0x0FFF;
 
-    unsigned char x;
-    unsigned char y;
     bool carry;
 
     //Decode and execute opcode
@@ -129,20 +148,20 @@ void CHIP_8::stepForward() {
             }
             break;
         case 0x1:           //0x1NNN Jump
-            moveProgramCounter(NNN);
+            jumpProgramCounter(NNN);
             break;
         case 0x2:           //0x2NNN Call Subroutine
             pushToAddressStack(PC);
-            moveProgramCounter(NNN);
+            jumpProgramCounter(NNN);
             break;
         case 0x3:           //0x3XNN Branch if VX == NN
-            if (V[X] == NN) PC += 2;
+            if (V[X] == NN) jumpProgramCounter(PC + 2);
             break;
         case 0x4:           //0x4XNN Branch if VX != NN
-            if (V[X] != NN) PC += 2;
+            if (V[X] != NN) jumpProgramCounter(PC + 2);
             break;
         case 0x5:           //0x5XY0 Branch if VX == VY
-            if (V[X] == V[Y]) PC += 2;
+            if (V[X] == V[Y]) jumpProgramCounter(PC + 2);
             break;
         case 0x6:           //0x6XNN Set
             V[X] = NN;
@@ -181,7 +200,7 @@ void CHIP_8::stepForward() {
                     V[0xF] = carry;
                     break;
                 case 0x7:   //0x8XY7 Subtract VY - VX
-                    carry = (V[Y] >= V[X]) ? true : false;
+                    carry = (V[Y] >= V[X]);
                     V[X] = V[Y] - V[X];
                     V[0xF] = carry;
                     break;
@@ -198,37 +217,23 @@ void CHIP_8::stepForward() {
             }
             break;
         case 0x9:           //0x9XY0 Branch if VX != VY
-            if (V[X] != V[Y]) PC += 2;
+            if (V[X] != V[Y]) jumpProgramCounter(PC + 2);
             break;
         case 0xA:           //0xANNN Set Index
             I = NNN;
             break;
         case 0xB:           //0xBNNN/0xBXNN Jump with Offset
             if (oldBehavior) {
-                moveProgramCounter(NNN + V[0]);
+                jumpProgramCounter(NNN + V[0]);
             } else {
-                moveProgramCounter(NNN + V[X]);
+                jumpProgramCounter(NNN + V[X]);
             }
             break;
         case 0xC:           //0xCXNN Random
             V[X] = dist(gen) & NN;
             break;
         case 0xD:           //0xDXYN Display
-            x = V[X] % 64;
-            y = V[Y] % 32;
-            V[0xF] = 0;
-            for (size_t row = 0; row < N; ++row) {
-                if (row + y > 31) break;
-                unsigned char spriteRow = readByte(I + row);
-                for (size_t column = 0; column < 8; ++column) {
-                    if (column + x > 63) break;
-                    if (spriteRow & 0x80) {
-                        if (display[row + y][column + x] && V[0xF] == 0) V[0xF] = 1;
-                        display[row + y][column + x] = !display[row + y][column + x];
-                    }
-                    spriteRow <<= 1;
-                }
-            }
+            drawSprite(X, Y, N);
             break;
         case 0xE:           //Skip if key
             switch (NN) {

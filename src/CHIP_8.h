@@ -21,13 +21,14 @@ class CHIP_8 {
     std::mt19937 gen;           //random number generator engine seeded with rd
     std::uniform_int_distribution<> dist;   //Bounds for RNG i guess?
 
-    void moveProgramCounter(uint16_t address);
+    void jumpProgramCounter(uint16_t address);
     void pushToAddressStack(uint16_t value);
     uint16_t popFromAddressStack();
     void clearScreen();
     [[nodiscard]] unsigned char readByte(size_t address) const;
     [[nodiscard]] unsigned short int readInstruction(size_t address) const;
     void writeByte(size_t address, unsigned char value);
+    void drawSprite(unsigned char X, unsigned char Y, unsigned char N);
 
     public:
     explicit CHIP_8(bool oldBehavior);
