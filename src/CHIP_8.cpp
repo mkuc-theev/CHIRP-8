@@ -27,12 +27,14 @@ constexpr unsigned char FONT[] {
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 
+constexpr size_t FONT_OFFSET = 0x50;
+
 CHIP_8::CHIP_8(bool oldBehavior) :
 RAM{}, PC{0x200}, I {0}, delayTimer{0}, soundTimer{0},
 V{}, display{}, keyEvent{0xFF},oldBehavior {oldBehavior},
 gen(rd()), dist{0x00, 0xFF} {
     //initialize RAM with font data (apparently convention is 0x050 - 0x09F)
-    std::copy_n(FONT, sizeof(FONT), RAM + 0x050);
+    std::copy_n(FONT, sizeof(FONT), RAM + FONT_OFFSET);
 }
 
 void CHIP_8::decrementDelayTimer() {
@@ -108,7 +110,7 @@ void CHIP_8::stepForward() {
     unsigned char x;
     unsigned char y;
 
-    //help
+    //Decode and execute opcode
     switch (opcode) {
         case 0x0:
             switch (NNN) {
@@ -235,8 +237,60 @@ void CHIP_8::stepForward() {
                     throw std::out_of_range(error.str());
             }
             break;
-        //TODO: Add all the 0xF--- opcodes, then figure things out from there
-        //(probably processor timing, sound, user input)
+        case 0xF:
+            switch (NN) {
+                case 0x07:  //0xFX07 VX = Delay timer
+                    V[X] = delayTimer;
+                    break;
+                case 0x15:  //0xFX15 Delay timer = VX
+                    delayTimer = V[X];
+                    break;
+                case 0x18:  //0xFX17 Sound timer = VX
+                    soundTimer = V[X];
+                    break;
+                case 0x1E:  //0xFX1E Add to index
+                    if (!oldBehavior && V[X] > 0xFFF - I) V[0xF] = 1;
+                    I += V[X];
+                    break;
+                case 0x0A:  //0xFX0A Get key
+                    if (keyEvent <= 0xF) {
+                        V[X] = keyEvent;
+                    } else {
+                        PC -= 2;
+                    }
+                    break;
+                case 0x29:  //0xFX29 Font character
+                    I = (V[X] & 0x0F) * 5 + FONT_OFFSET;
+                    break;
+                case 0x33:  //0xFX33 Binary-coded decimal conversion
+                    RAM[I] = V[X]/100;
+                    RAM[I+1] = (V[X] / 10) % 10;
+                    RAM[I+2] = V[X] % 10;
+                    break;
+                case 0x55:  //0xFX55 Store register to memory
+                    for (size_t n = 0; n <= V[X]; ++n) {
+                        if (oldBehavior) {
+                            RAM[I++] = V[n];
+                        } else {
+                            RAM[I + n] = V[n];
+                        }
+                    }
+                    break;
+                case 0x65:  //0xFX65 Load register from memory
+                    for (size_t n = 0; n <= V[X]; ++n) {
+                        if (oldBehavior) {
+                            V[n] = RAM[I++];
+                        } else {
+                            V[n] = RAM[I + n];
+                        }
+                    }
+                    break;
+                default:
+                    std::stringstream error;
+                    error << "Unknown instruction 0x" << std::hex << instruction;
+                    throw std::out_of_range(error.str());
+            }
+            break;
         default:
             std::stringstream error;
             error << "Unknown instruction 0x" << std::hex << instruction;
