@@ -165,12 +165,12 @@ void CHIP_8::stepForward() {
                     V[X] ^= V[Y];
                     break;
                 case 0x4:   //0x8XY4 Add (with carry flag)
-                    carry = (V[X] > 0xFF - V[Y]) ? true : false;
+                    carry = V[X] > 0xFF - V[Y];
                     V[X] += V[Y];
                     V[0xF] = carry;
                     break;
                 case 0x5:   //0x8XY5 Subtract VX - VY
-                    carry = (V[X] >= V[Y]) ? true : false;
+                    carry = V[X] >= V[Y];
                     V[X] -= V[Y];
                     V[0xF] = carry;
                     break;
@@ -219,7 +219,7 @@ void CHIP_8::stepForward() {
             V[0xF] = 0;
             for (size_t row = 0; row < N; ++row) {
                 if (row + y > 31) break;
-                unsigned char spriteRow = RAM[I + row];
+                unsigned char spriteRow = readByte(I + row);
                 for (size_t column = 0; column < 8; ++column) {
                     if (column + x > 63) break;
                     if (spriteRow & 0x80) {
@@ -271,25 +271,25 @@ void CHIP_8::stepForward() {
                     I = (V[X] & 0x0F) * 5 + FONT_OFFSET;
                     break;
                 case 0x33:  //0xFX33 Binary-coded decimal conversion
-                    RAM[I] = V[X]/100;
-                    RAM[I+1] = (V[X] / 10) % 10;
-                    RAM[I+2] = V[X] % 10;
+                    writeByte(I, V[X]/100);
+                    writeByte(I + 1, (V[X] / 10) % 10);
+                    writeByte(I + 2, V[X] % 10);
                     break;
                 case 0x55:  //0xFX55 Store register to memory
                     for (size_t n = 0; n <= X; ++n) {
                         if (oldBehavior) {
-                            RAM[I++] = V[n];
+                            writeByte(I++, V[n]);
                         } else {
-                            RAM[I + n] = V[n];
+                            writeByte(I+ 1, V[n]);
                         }
                     }
                     break;
                 case 0x65:  //0xFX65 Load register from memory
                     for (size_t n = 0; n <= X; ++n) {
                         if (oldBehavior) {
-                            V[n] = RAM[I++];
+                            V[n] = readByte(I++);
                         } else {
-                            V[n] = RAM[I + n];
+                            V[n] = readByte(I + n);
                         }
                     }
                     break;
@@ -331,7 +331,7 @@ void CHIP_8::dumpDisplay() const {
 
 void CHIP_8::dumpRAM() const {
     for (size_t i = 0x000; i <= 0xFFF; ++i) {
-        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(RAM[i]) << " ";
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(readByte(i)) << " ";
     }
 }
 
