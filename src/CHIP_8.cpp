@@ -32,7 +32,7 @@ constexpr size_t ROM_OFFSET = 0x200;
 
 CHIP_8::CHIP_8(bool oldBehavior) :
 RAM{}, PC{ROM_OFFSET}, I {0}, delayTimer{0}, soundTimer{0},
-V{}, display{}, keyEvent{0xFF},oldBehavior {oldBehavior},
+V{}, display{}, keyEvent{0xFF},oldBehavior {false},
 gen(rd()), dist{0x00, 0xFF} {
     //initialize RAM with font data (apparently convention is 0x050 - 0x09F)
     std::copy_n(FONT, sizeof(FONT), RAM + FONT_OFFSET);
@@ -110,6 +110,7 @@ void CHIP_8::stepForward() {
 
     unsigned char x;
     unsigned char y;
+    bool carry;
 
     //Decode and execute opcode
     switch (opcode) {
@@ -164,26 +165,31 @@ void CHIP_8::stepForward() {
                     V[X] ^= V[Y];
                     break;
                 case 0x4:   //0x8XY4 Add (with carry flag)
-                    V[0xF] = (V[X] > 0xFF - V[Y]) ? 1 : 0;
+                    carry = (V[X] > 0xFF - V[Y]) ? true : false;
                     V[X] += V[Y];
+                    V[0xF] = carry;
                     break;
                 case 0x5:   //0x8XY5 Subtract VX - VY
-                    V[0xF] = (V[X] >= V[Y]) ? 1 : 0;
+                    carry = (V[X] >= V[Y]) ? true : false;
                     V[X] -= V[Y];
+                    V[0xF] = carry;
                     break;
                 case 0x6:   //0x8XY6 Shift Right
                     if (oldBehavior) V[X] = V[Y];
-                    V[0xF] = V[X] & 0x1;
+                    carry = V[X] & 0x1;
                     V[X] >>= 1;
+                    V[0xF] = carry;
                     break;
                 case 0x7:   //0x8XY7 Subtract VY - VX
-                    V[0xF] = (V[Y] >= V[X]) ? 1 : 0;
+                    carry = (V[Y] >= V[X]) ? true : false;
                     V[X] = V[Y] - V[X];
+                    V[0xF] = carry;
                     break;
                 case 0xE:   //0x8XYE Shift Left
                     if (oldBehavior) V[X] = V[Y];
-                    V[0xF] = V[X] >> 7;
+                    carry = V[X] >> 7;
                     V[X] <<= 1;
+                    V[0xF] = carry;
                     break;
                 default:
                     std::stringstream error;
@@ -250,8 +256,9 @@ void CHIP_8::stepForward() {
                     soundTimer = V[X];
                     break;
                 case 0x1E:  //0xFX1E Add to index
-                    V[0xF] = (!oldBehavior && V[X] > 0xFFF - I) ? 1 : 0;
+                    carry = (!oldBehavior && V[X] > 0xFFF - I) ? true : false;
                     I += V[X];
+                    V[0xF] = carry;
                     break;
                 case 0x0A:  //0xFX0A Get key
                     if (keyEvent <= 0xF) {
@@ -269,7 +276,7 @@ void CHIP_8::stepForward() {
                     RAM[I+2] = V[X] % 10;
                     break;
                 case 0x55:  //0xFX55 Store register to memory
-                    for (size_t n = 0; n <= V[X]; ++n) {
+                    for (size_t n = 0; n <= X; ++n) {
                         if (oldBehavior) {
                             RAM[I++] = V[n];
                         } else {
@@ -278,7 +285,7 @@ void CHIP_8::stepForward() {
                     }
                     break;
                 case 0x65:  //0xFX65 Load register from memory
-                    for (size_t n = 0; n <= V[X]; ++n) {
+                    for (size_t n = 0; n <= X; ++n) {
                         if (oldBehavior) {
                             V[n] = RAM[I++];
                         } else {
