@@ -64,7 +64,7 @@ void Emulator::startEmulation() {
         }
         //emulationCore.dumpDisplay();
         window.clear(sf::Color::Black);
-        drawDisplay(emulationCore.getDisplay());
+        drawDisplay(*emulationCore.getDisplay());
         window.display();
     }
     //emulationCore.dumpRAM();

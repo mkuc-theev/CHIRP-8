@@ -397,27 +397,27 @@ void CHIP_8::toggleKey(const uint16_t keycode) {
     keypad ^= keycode;
 }
 
-const uint8_t & CHIP_8::getRAM() const {
-    return *RAM;
+const memory& CHIP_8::getRAM() const {
+    return RAM;
 }
 
-const uint16_t & CHIP_8::getProgramCounter() const {
+const uint16_t& CHIP_8::getProgramCounter() const {
     return PC;
 }
 
-const uint16_t & CHIP_8::getIndexRegister() const {
+const uint16_t& CHIP_8::getIndexRegister() const {
     return I;
 }
 
-const std::stack<uint16_t> & CHIP_8::getStack() const {
+const std::stack<uint16_t>& CHIP_8::getStack() const {
     return stack;
 }
 
-const uint8_t & CHIP_8::getVariableRegisters() const {
-    return *V;
+const registers& CHIP_8::getVariableRegisters() const {
+    return V;
 }
 
-const uint8_t & CHIP_8::getDelayTimer() const {
+const uint8_t& CHIP_8::getDelayTimer() const {
     return delayTimer;
 }
 
@@ -425,22 +425,22 @@ const uint8_t& CHIP_8::getSoundTimer() const {
     return soundTimer;
 }
 
-const bool& CHIP_8::getDisplay() const {
-    return *display;
+const matrix2d& CHIP_8::getDisplay() const {
+    return display;
 }
 
-const uint16_t & CHIP_8::getKeypad() const {
+const uint16_t& CHIP_8::getKeypad() const {
     return keypad;
 }
 
-const uint16_t & CHIP_8::getOldKeypad() const {
+const uint16_t& CHIP_8::getOldKeypad() const {
     return oldKeypad;
 }
 
-const uint8_t & CHIP_8::getAwaitedKey() const {
+const uint8_t& CHIP_8::getAwaitedKey() const {
     return awaitedKey;
 }
 
-const bool & CHIP_8::getOldBehavior() const {
+const bool& CHIP_8::getOldBehavior() const {
     return oldBehavior;
 }

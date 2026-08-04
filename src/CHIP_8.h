@@ -6,16 +6,20 @@
 #include <stack>
 #include <string>
 
+using memory = uint8_t[4096];
+using registers = uint8_t[16];
+using matrix2d = bool[32][64];
+
 class CHIP_8 {
-    uint8_t RAM[4096];          //memory
+    memory RAM;                 //memory
     uint16_t PC;                //program counter
     uint16_t I;                 //index register
     std::stack<uint16_t> stack; //stack for subroutine return addresses
-    uint8_t V[16];              //variable registers
+    registers V;                //variable registers
 
     uint8_t delayTimer;         //delay timer (some sort of frame counter?)
     uint8_t soundTimer;         //sound timer (computer beeps when this is above 0)
-    bool display[32][64];       //64x32 display matrix (monochromatic)
+    matrix2d display;           //64x32 display matrix (monochromatic)
     uint16_t keypad;            //Current state of keypad
 
     uint16_t oldKeypad;         //State of keypad one instruction ago
@@ -67,14 +71,14 @@ class CHIP_8 {
     void importROM(const std::string &path);
     void toggleKey(uint16_t keycode);
 
-    [[nodiscard]] const uint8_t& getRAM() const;
+    [[nodiscard]] const memory& getRAM() const;
     [[nodiscard]] const uint16_t& getProgramCounter() const;
     [[nodiscard]] const uint16_t& getIndexRegister() const;
     [[nodiscard]] const std::stack<uint16_t>& getStack() const;
-    [[nodiscard]] const uint8_t& getVariableRegisters() const;
+    [[nodiscard]] const registers& getVariableRegisters() const;
     [[nodiscard]] const uint8_t& getDelayTimer() const;
     [[nodiscard]] const uint8_t& getSoundTimer() const;
-    [[nodiscard]] const bool& getDisplay() const;
+    [[nodiscard]] const matrix2d& getDisplay() const;
     [[nodiscard]] const uint16_t& getKeypad() const;
     [[nodiscard]] const uint16_t& getOldKeypad() const;
     [[nodiscard]] const uint8_t& getAwaitedKey() const;
