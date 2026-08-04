@@ -32,9 +32,9 @@ class CHIP_8 {
     [[nodiscard]] unsigned char pollPressedKey() const;
     uint16_t popFromAddressStack();
     void clearScreen();
-    [[nodiscard]] unsigned char readByte(size_t address) const;
-    [[nodiscard]] unsigned short int readInstruction(size_t address) const;
-    void writeByte(size_t address, unsigned char value);
+    [[nodiscard]] unsigned char readByte(uint16_t address) const;
+    [[nodiscard]] unsigned short int readInstruction(uint16_t address) const;
+    void writeByte(uint16_t address, unsigned char value);
     void drawSprite(unsigned char X, unsigned char Y, unsigned char N);
     void getKey(unsigned char X);
     void addWithCarry(unsigned char X, unsigned char Y);

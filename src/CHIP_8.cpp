@@ -27,8 +27,8 @@ constexpr unsigned char FONT[] {
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 
-constexpr size_t FONT_OFFSET = 0x50;
-constexpr size_t ROM_OFFSET = 0x200;
+constexpr uint16_t FONT_OFFSET = 0x50;
+constexpr uint16_t ROM_OFFSET = 0x200;
 
 CHIP_8::CHIP_8(bool oldBehavior) :
 RAM{}, PC{ROM_OFFSET}, I {0}, delayTimer{0}, soundTimer{0},
@@ -95,20 +95,20 @@ void CHIP_8::clearScreen() {
     }
 }
 
-unsigned char CHIP_8::readByte(const size_t address) const {
+unsigned char CHIP_8::readByte(const uint16_t address) const {
     if (address > 0xFFF) throw std::out_of_range("Memory access out of range (readByte)");
 
     return RAM[address];
 }
 
-unsigned short int CHIP_8::readInstruction(const size_t address) const {
+unsigned short int CHIP_8::readInstruction(const uint16_t address) const {
     if (address > 0xFFE) throw std::out_of_range("Memory access out of range (readInstruction)");
 
     const unsigned short int instruction = RAM[address] << 8 | RAM[address + 1];
     return instruction;
 }
 
-void CHIP_8::writeByte(const size_t address, const unsigned char value) {
+void CHIP_8::writeByte(const uint16_t address, const unsigned char value) {
     if (address > 0xFFF) throw std::out_of_range("Memory access out of range (writeByte)");
 
     RAM[address] = value;
@@ -396,7 +396,7 @@ void CHIP_8::dumpDisplay() const {
 }
 
 void CHIP_8::dumpRAM() const {
-    for (size_t i = 0x000; i <= 0xFFF; ++i) {
+    for (uint16_t i = 0x000; i <= 0xFFF; ++i) {
         std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(readByte(i)) << " ";
     }
 }
