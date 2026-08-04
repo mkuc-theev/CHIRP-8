@@ -132,8 +132,8 @@ uint8_t CHIP_8::pollPressedKey() const {
 void CHIP_8::getKey(const uint8_t X) {
     if (awaitedKey > 0xF) {
         awaitedKey = pollPressedKey();
-    } else if (const uint8_t key = pollReleasedKey(); key == awaitedKey)  {
-        V[X] = key;
+    } else if (awaitedKey == pollReleasedKey())  {
+        V[X] = awaitedKey;
         awaitedKey = 0xFF;
         return;
     }
