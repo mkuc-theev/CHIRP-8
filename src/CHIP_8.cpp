@@ -4,7 +4,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
-#include <iostream>
 #include <stdexcept>
 #include <random>
 
@@ -31,21 +30,14 @@ constexpr uint16_t FONT_OFFSET = 0x50;
 constexpr uint16_t ROM_OFFSET = 0x200;
 
 CHIP_8::CHIP_8(const bool oldBehavior) :
-RAM{}, PC{ROM_OFFSET}, I {0}, delayTimer{0}, soundTimer{0},
-V{}, display{}, keypad{0}, oldKeypad{0}, awaitedKey {0xFF},
+RAM{}, PC{ROM_OFFSET}, I {0}, V{}, delayTimer{0},
+soundTimer{0}, display{}, keypad{0}, oldKeypad{0}, awaitedKey {0xFF},
 oldBehavior {oldBehavior}, gen(rd()), dist{0x00, 0xFF} {
     //initialize RAM with font data (apparently convention is 0x050 - 0x09F)
     std::copy_n(FONT, sizeof(FONT), RAM + FONT_OFFSET);
 }
 
-void CHIP_8::decrementDelayTimer() {
-    if (delayTimer > 0) delayTimer--;
-}
-
-void CHIP_8::decrementSoundTimer() {
-    if (soundTimer > 0) soundTimer--;
-}
-
+// Private functions
 
 void CHIP_8::jumpProgramCounter(const uint16_t address) {
     if (address > 0xFFF) throw std::out_of_range("Program counter moved out of range");
@@ -59,40 +51,12 @@ void CHIP_8::pushToAddressStack(const uint16_t value) {
     stack.push(value);
 }
 
-bool CHIP_8::keyIsPressed(const uint16_t key) const {
-    if (key > 0xF) throw std::out_of_range("Keypad button code out of range");
-
-    return keypad >> key & 1;
-}
-
-bool CHIP_8::keyWasPressed(const uint16_t key) const {
-    if (key > 0xF) throw std::out_of_range("Keypad button code out of range");
-
-    return oldKeypad >> key & 1;
-}
-
-uint8_t CHIP_8::pollReleasedKey() const {
-    return std::countr_zero(static_cast<uint16_t>((oldKeypad ^ keypad) & oldKeypad));
-}
-
-uint8_t CHIP_8::pollPressedKey() const {
-    return std::countr_zero(static_cast<uint16_t>((oldKeypad ^ keypad) & keypad));
-}
-
 uint16_t CHIP_8::popFromAddressStack() {
     if (stack.empty()) throw std::logic_error("Stack is empty");
 
     const uint16_t value = stack.top();
     stack.pop();
     return value;
-}
-
-void CHIP_8::clearScreen() {
-    for (auto & i : display) {
-        for (bool & j : i) {
-            j = false;
-        }
-    }
 }
 
 uint8_t CHIP_8::readByte(const uint16_t address) const {
@@ -114,6 +78,18 @@ void CHIP_8::writeByte(const uint16_t address, const uint8_t value) {
     RAM[address] = value;
 }
 
+void CHIP_8::setSoundTimer(const uint8_t newSoundTimer) {
+    soundTimer = newSoundTimer;
+}
+
+void CHIP_8::clearScreen() {
+    for (auto & i : display) {
+        for (bool & j : i) {
+            j = false;
+        }
+    }
+}
+
 void CHIP_8::drawSprite(const uint8_t X, const uint8_t Y, const uint8_t N) {
     const uint8_t x = V[X] % 64;
     const uint8_t y = V[Y] % 32;
@@ -131,6 +107,26 @@ void CHIP_8::drawSprite(const uint8_t X, const uint8_t Y, const uint8_t N) {
             spriteRow <<= 1;
         }
     }
+}
+
+bool CHIP_8::keyIsPressed(const uint16_t key) const {
+    if (key > 0xF) throw std::out_of_range("Keypad button code out of range");
+
+    return keypad >> key & 1;
+}
+
+bool CHIP_8::keyWasPressed(const uint16_t key) const {
+    if (key > 0xF) throw std::out_of_range("Keypad button code out of range");
+
+    return oldKeypad >> key & 1;
+}
+
+uint8_t CHIP_8::pollReleasedKey() const {
+    return std::countr_zero(static_cast<uint16_t>((oldKeypad ^ keypad) & oldKeypad));
+}
+
+uint8_t CHIP_8::pollPressedKey() const {
+    return std::countr_zero(static_cast<uint16_t>((oldKeypad ^ keypad) & keypad));
 }
 
 void CHIP_8::getKey(const uint8_t X) {
@@ -220,6 +216,16 @@ void CHIP_8::throwInstructionError(const uint8_t instruction) {
     std::stringstream error;
     error << "Unknown instruction 0x" << std::hex << instruction;
     throw std::out_of_range(error.str());
+}
+
+//Public functions
+
+void CHIP_8::decrementDelayTimer() {
+    if (delayTimer > 0) delayTimer--;
+}
+
+void CHIP_8::decrementSoundTimer() {
+    if (soundTimer > 0) soundTimer--;
 }
 
 void CHIP_8::stepForward() {
@@ -386,36 +392,55 @@ void CHIP_8::importROM(const std::string &path) {
     rom.close();
 }
 
-void CHIP_8::dumpDisplay() const {
-    for (const auto & row : display) {
-        for (const bool column : row) {
-            std::cout << column;
-        }
-        std::cout << std::endl;
-    }
-}
-
-void CHIP_8::dumpRAM() const {
-    for (uint16_t i = 0x000; i <= 0xFFF; ++i) {
-        std::cout << std::hex << std::setw(2) << std::setfill('0') << readByte(i) << " ";
-    }
-}
-
-bool* CHIP_8::getDisplay() {
-    return *display;
-}
-
-
-uint8_t* CHIP_8::getSoundTimer() {
-    return &soundTimer;
-}
-
-
-void CHIP_8::setSoundTimer(const uint8_t newSoundTimer) {
-    soundTimer = newSoundTimer;
-}
-
 void CHIP_8::toggleKey(const uint16_t keycode) {
     oldKeypad = keypad;
     keypad ^= keycode;
+}
+
+const uint8_t & CHIP_8::getRAM() const {
+    return *RAM;
+}
+
+const uint16_t & CHIP_8::getProgramCounter() const {
+    return PC;
+}
+
+const uint16_t & CHIP_8::getIndexRegister() const {
+    return I;
+}
+
+const std::stack<uint16_t> & CHIP_8::getStack() const {
+    return stack;
+}
+
+const uint8_t & CHIP_8::getVariableRegisters() const {
+    return *V;
+}
+
+const uint8_t & CHIP_8::getDelayTimer() const {
+    return delayTimer;
+}
+
+const uint8_t& CHIP_8::getSoundTimer() const {
+    return soundTimer;
+}
+
+const bool& CHIP_8::getDisplay() const {
+    return *display;
+}
+
+const uint16_t & CHIP_8::getKeypad() const {
+    return keypad;
+}
+
+const uint16_t & CHIP_8::getOldKeypad() const {
+    return oldKeypad;
+}
+
+const uint8_t & CHIP_8::getAwaitedKey() const {
+    return awaitedKey;
+}
+
+const bool & CHIP_8::getOldBehavior() const {
+    return oldBehavior;
 }
