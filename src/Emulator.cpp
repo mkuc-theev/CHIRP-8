@@ -54,7 +54,9 @@ void Emulator::startEmulation() {
                 }
             }
             if (const auto* keyReleased = event->getIf<sf::Event::KeyReleased>()) {
-                emulationCore.toggleKey(keyMap.at(keyReleased->scancode));
+                if (keyMap.contains(keyReleased->scancode)) {
+                    emulationCore.toggleKey(keyMap.at(keyReleased->scancode));
+                }
             }
         }
         emulationCore.decrementDelayTimer();
@@ -62,12 +64,10 @@ void Emulator::startEmulation() {
         for (int i = 0; i < INSTRUCTIONS_PER_FRAME; ++i) {
             emulationCore.stepForward();
         }
-        //emulationCore.dumpDisplay();
         window.clear(sf::Color::Black);
         drawDisplay(*emulationCore.getDisplay());
         window.display();
     }
-    //emulationCore.dumpRAM();
 }
 
 void Emulator::drawDisplay(const bool *display) {
