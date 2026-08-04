@@ -5,20 +5,19 @@
 #include <random>
 #include <stack>
 #include <string>
-//todo fix keypad, figure out audio
 
 class CHIP_8 {
-    unsigned char RAM[4096];    //memory
+    uint8_t RAM[4096];          //memory
     uint16_t PC;                //program counter
     uint16_t I;                 //index register
     std::stack<uint16_t> stack; //stack for subroutine addresses
     uint8_t delayTimer;         //delay timer (some sort of frame counter?)
     uint8_t soundTimer;         //sound timer (computer beeps when this is above 0)
-    unsigned char V[16];        //variable registers
+    uint8_t V[16];              //variable registers
     bool display[32][64];       //64x32 display matrix (monochromatic)
     uint16_t keypad;
     uint16_t oldKeypad;
-    unsigned char awaitedKey;
+    uint8_t awaitedKey;
     bool oldBehavior;           //Behavior of the 0x8XY6 and 0x8XYE instructions
     std::random_device rd;      //seed source for RNG
     std::mt19937 gen;           //random number generator engine seeded with rd
@@ -28,26 +27,26 @@ class CHIP_8 {
     void pushToAddressStack(uint16_t value);
     [[nodiscard]] bool keyIsPressed(uint16_t key) const;
     [[nodiscard]] bool keyWasPressed(uint16_t key) const;
-    [[nodiscard]] unsigned char pollReleasedKey() const;
-    [[nodiscard]] unsigned char pollPressedKey() const;
+    [[nodiscard]] uint8_t pollReleasedKey() const;
+    [[nodiscard]] uint8_t pollPressedKey() const;
     uint16_t popFromAddressStack();
     void clearScreen();
-    [[nodiscard]] unsigned char readByte(uint16_t address) const;
-    [[nodiscard]] unsigned short int readInstruction(uint16_t address) const;
-    void writeByte(uint16_t address, unsigned char value);
-    void drawSprite(unsigned char X, unsigned char Y, unsigned char N);
-    void getKey(unsigned char X);
-    void addWithCarry(unsigned char X, unsigned char Y);
-    void subtractXY(unsigned char X, unsigned char Y);
-    void subtractYX(unsigned char X, unsigned char Y);
-    void shiftRight(unsigned char X, unsigned char Y);
-    void shiftLeft(unsigned char X, unsigned char Y);
+    [[nodiscard]] uint8_t readByte(uint16_t address) const;
+    [[nodiscard]] uint16_t readInstruction(uint16_t address) const;
+    void writeByte(uint16_t address, uint8_t value);
+    void drawSprite(uint8_t X, uint8_t Y, uint8_t N);
+    void getKey(uint8_t X);
+    void addWithCarry(uint8_t X, uint8_t Y);
+    void subtractXY(uint8_t X, uint8_t Y);
+    void subtractYX(uint8_t X, uint8_t Y);
+    void shiftRight(uint8_t X, uint8_t Y);
+    void shiftLeft(uint8_t X, uint8_t Y);
     void oldJumpWithOffset(uint16_t NNN);
-    void jumpWithOffset(unsigned char X, uint8_t NN);
-    void addToIndex(unsigned char X);
-    void binaryCodedDecimal(unsigned char X);
-    void writeRegisters(unsigned char X);
-    void readRegisters(unsigned char X);
+    void jumpWithOffset(uint8_t X, uint8_t NN);
+    void addToIndex(uint8_t X);
+    void binaryCodedDecimal(uint8_t X);
+    void writeRegisters(uint8_t X);
+    void readRegisters(uint8_t X);
 
     static void throwInstructionError(uint8_t instruction);
 
@@ -64,7 +63,7 @@ class CHIP_8 {
     bool* getDisplay();
     uint8_t* getSoundTimer();
 
-    void setSoundTimer(unsigned char newSoundTimer);
+    void setSoundTimer(uint8_t newSoundTimer);
     void toggleKey(uint16_t keycode);
 };
 

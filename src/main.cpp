@@ -2,7 +2,7 @@
 #include <SFML/Graphics.hpp>
 #include "Emulator.h"
 
-int main(int argc, char** argv)
+int main(const int argc, char** argv)
 {
 	try {
 		Emulator emulator(argc, argv);

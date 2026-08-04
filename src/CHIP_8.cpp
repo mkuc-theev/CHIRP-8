@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <random>
 
-constexpr unsigned char FONT[] {
+constexpr uint8_t FONT[] {
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
     0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -30,10 +30,10 @@ constexpr unsigned char FONT[] {
 constexpr uint16_t FONT_OFFSET = 0x50;
 constexpr uint16_t ROM_OFFSET = 0x200;
 
-CHIP_8::CHIP_8(bool oldBehavior) :
+CHIP_8::CHIP_8(const bool oldBehavior) :
 RAM{}, PC{ROM_OFFSET}, I {0}, delayTimer{0}, soundTimer{0},
 V{}, display{}, keypad{0}, oldKeypad{0}, awaitedKey {0xFF},
-oldBehavior {false}, gen(rd()), dist{0x00, 0xFF} {
+oldBehavior {oldBehavior}, gen(rd()), dist{0x00, 0xFF} {
     //initialize RAM with font data (apparently convention is 0x050 - 0x09F)
     std::copy_n(FONT, sizeof(FONT), RAM + FONT_OFFSET);
 }
@@ -71,11 +71,11 @@ bool CHIP_8::keyWasPressed(const uint16_t key) const {
     return oldKeypad >> key & 1;
 }
 
-unsigned char CHIP_8::pollReleasedKey() const {
+uint8_t CHIP_8::pollReleasedKey() const {
     return std::countr_zero(static_cast<uint16_t>((oldKeypad ^ keypad) & oldKeypad));
 }
 
-unsigned char CHIP_8::pollPressedKey() const {
+uint8_t CHIP_8::pollPressedKey() const {
     return std::countr_zero(static_cast<uint16_t>((oldKeypad ^ keypad) & keypad));
 }
 
@@ -95,33 +95,33 @@ void CHIP_8::clearScreen() {
     }
 }
 
-unsigned char CHIP_8::readByte(const uint16_t address) const {
+uint8_t CHIP_8::readByte(const uint16_t address) const {
     if (address > 0xFFF) throw std::out_of_range("Memory access out of range (readByte)");
 
     return RAM[address];
 }
 
-unsigned short int CHIP_8::readInstruction(const uint16_t address) const {
+uint16_t CHIP_8::readInstruction(const uint16_t address) const {
     if (address > 0xFFE) throw std::out_of_range("Memory access out of range (readInstruction)");
 
-    const unsigned short int instruction = RAM[address] << 8 | RAM[address + 1];
+    const uint16_t instruction = RAM[address] << 8 | RAM[address + 1];
     return instruction;
 }
 
-void CHIP_8::writeByte(const uint16_t address, const unsigned char value) {
+void CHIP_8::writeByte(const uint16_t address, const uint8_t value) {
     if (address > 0xFFF) throw std::out_of_range("Memory access out of range (writeByte)");
 
     RAM[address] = value;
 }
 
-void CHIP_8::drawSprite(const unsigned char X, const unsigned char Y, const unsigned char N) {
-    const unsigned char x = V[X] % 64;
-    const unsigned char y = V[Y] % 32;
+void CHIP_8::drawSprite(const uint8_t X, const uint8_t Y, const uint8_t N) {
+    const uint8_t x = V[X] % 64;
+    const uint8_t y = V[Y] % 32;
     V[0xF] = 0;
 
     for (size_t row = 0; row < N; ++row) {
         if (row + y > 31) break;
-        unsigned char spriteRow = readByte(I + row);
+        uint8_t spriteRow = readByte(I + row);
         for (size_t column = 0; column < 8; ++column) {
             if (column + x > 63) break;
             if (spriteRow & 0b10000000) {
@@ -133,10 +133,10 @@ void CHIP_8::drawSprite(const unsigned char X, const unsigned char Y, const unsi
     }
 }
 
-void CHIP_8::getKey(const unsigned char X) {
+void CHIP_8::getKey(const uint8_t X) {
     if (awaitedKey > 0xF) {
         awaitedKey = pollPressedKey();
-    } else if (const unsigned char key = pollReleasedKey(); key == awaitedKey)  {
+    } else if (const uint8_t key = pollReleasedKey(); key == awaitedKey)  {
         V[X] = key;
         awaitedKey = 0xFF;
         return;
@@ -144,59 +144,59 @@ void CHIP_8::getKey(const unsigned char X) {
     jumpProgramCounter(PC - 2);
 }
 
-void CHIP_8::addWithCarry(unsigned char X, unsigned char Y) {
+void CHIP_8::addWithCarry(const uint8_t X, const uint8_t Y) {
     const bool carry = V[X] > 0xFF - V[Y];
     V[X] += V[Y];
     V[0xF] = carry;
 }
 
-void CHIP_8::subtractXY(unsigned char X, unsigned char Y) {
+void CHIP_8::subtractXY(const uint8_t X, const uint8_t Y) {
     const bool carry = V[X] >= V[Y];
     V[X] -= V[Y];
     V[0xF] = carry;
 }
 
-void CHIP_8::subtractYX(unsigned char X, unsigned char Y) {
+void CHIP_8::subtractYX(const uint8_t X, const uint8_t Y) {
     const bool carry = (V[Y] >= V[X]);
     V[X] = V[Y] - V[X];
     V[0xF] = carry;
 }
 
-void CHIP_8::shiftRight(unsigned char X, unsigned char Y) {
+void CHIP_8::shiftRight(const uint8_t X, const uint8_t Y) {
     if (oldBehavior) V[X] = V[Y];
     const bool ejectedBit = V[X] & 0x1;
     V[X] >>= 1;
     V[0xF] = ejectedBit;
 }
 
-void CHIP_8::shiftLeft(unsigned char X, unsigned char Y) {
+void CHIP_8::shiftLeft(const uint8_t X, const uint8_t Y) {
     if (oldBehavior) V[X] = V[Y];
     const bool ejectedBit = V[X] >> 7;
     V[X] <<= 1;
     V[0xF] = ejectedBit;
 }
 
-void CHIP_8::oldJumpWithOffset(uint16_t NNN) {
+void CHIP_8::oldJumpWithOffset(const uint16_t NNN) {
         jumpProgramCounter(NNN + V[0]);
 }
 
-void CHIP_8::jumpWithOffset(unsigned char X, uint8_t NN) {
+void CHIP_8::jumpWithOffset(const uint8_t X, const uint8_t NN) {
         jumpProgramCounter(NN + V[X]);
 }
 
-void CHIP_8::addToIndex(unsigned char X) {
+void CHIP_8::addToIndex(const uint8_t X) {
     const bool carry = !oldBehavior && V[X] > 0xFFF - I;
     I += V[X];
     V[0xF] = carry;
 }
 
-void CHIP_8::binaryCodedDecimal(unsigned char X) {
+void CHIP_8::binaryCodedDecimal(const uint8_t X) {
     writeByte(I, V[X]/100);
     writeByte(I + 1, (V[X] / 10) % 10);
     writeByte(I + 2, V[X] % 10);
 }
 
-void CHIP_8::writeRegisters(unsigned char X) {
+void CHIP_8::writeRegisters(const uint8_t X) {
     for (size_t n = 0; n <= X; ++n) {
         if (oldBehavior) {
             writeByte(I++, V[n]);
@@ -206,7 +206,7 @@ void CHIP_8::writeRegisters(unsigned char X) {
     }
 }
 
-void CHIP_8::readRegisters(unsigned char X) {
+void CHIP_8::readRegisters(const uint8_t X) {
     for (size_t n = 0; n <= X; ++n) {
         if (oldBehavior) {
             V[n] = readByte(I++);
@@ -231,10 +231,10 @@ void CHIP_8::stepForward() {
     if (instruction == 0x0000) return;
 
     //Extract important bytes using bit masks and shifts
-    const unsigned char opcode = instruction >> 12;
-    const unsigned char X = (instruction & 0x0F00) >> 8;
-    const unsigned char Y = (instruction & 0x00F0) >> 4;
-    const unsigned char N = (instruction & 0x000F);
+    const uint8_t opcode = instruction >> 12;
+    const uint8_t X = (instruction & 0x0F00) >> 8;
+    const uint8_t Y = (instruction & 0x00F0) >> 4;
+    const uint8_t N = (instruction & 0x000F);
     const uint8_t NN = instruction & 0x00FF;
     const uint16_t NNN = instruction & 0x0FFF;
 
@@ -381,7 +381,7 @@ void CHIP_8::importROM(const std::string &path) {
     std::ifstream rom(path, std::ios_base::binary);
     if (!rom.is_open()) throw std::runtime_error("Could not open ROM file");
 
-    rom.read(reinterpret_cast<char*>(RAM + ROM_OFFSET), static_cast<std::streamsize>(length));
+    rom.read(reinterpret_cast<std::istream::char_type *>(RAM + ROM_OFFSET), static_cast<std::streamsize>(length));
 
     rom.close();
 }
@@ -397,21 +397,21 @@ void CHIP_8::dumpDisplay() const {
 
 void CHIP_8::dumpRAM() const {
     for (uint16_t i = 0x000; i <= 0xFFF; ++i) {
-        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(readByte(i)) << " ";
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << readByte(i) << " ";
     }
 }
 
-bool * CHIP_8::getDisplay() {
+bool* CHIP_8::getDisplay() {
     return *display;
 }
 
 
-uint8_t * CHIP_8::getSoundTimer() {
+uint8_t* CHIP_8::getSoundTimer() {
     return &soundTimer;
 }
 
 
-void CHIP_8::setSoundTimer(const unsigned char newSoundTimer) {
+void CHIP_8::setSoundTimer(const uint8_t newSoundTimer) {
     soundTimer = newSoundTimer;
 }
 
