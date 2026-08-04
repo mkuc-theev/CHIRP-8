@@ -104,7 +104,7 @@ unsigned char CHIP_8::readByte(const size_t address) const {
 unsigned short int CHIP_8::readInstruction(const size_t address) const {
     if (address > 0xFFE) throw std::out_of_range("Memory access out of range (readInstruction)");
 
-    unsigned short int instruction = RAM[address] << 8 | RAM[address + 1];
+    const unsigned short int instruction = RAM[address] << 8 | RAM[address + 1];
     return instruction;
 }
 
@@ -115,22 +115,22 @@ void CHIP_8::writeByte(const size_t address, const unsigned char value) {
 }
 
 void CHIP_8::drawSprite(const unsigned char X, const unsigned char Y, const unsigned char N) {
-        const unsigned char x = V[X] % 64;
-        const unsigned char y = V[Y] % 32;
-        V[0xF] = 0;
+    const unsigned char x = V[X] % 64;
+    const unsigned char y = V[Y] % 32;
+    V[0xF] = 0;
 
-        for (size_t row = 0; row < N; ++row) {
-            if (row + y > 31) break;
-            unsigned char spriteRow = readByte(I + row);
-            for (size_t column = 0; column < 8; ++column) {
-                if (column + x > 63) break;
-                if (spriteRow & 0b10000000) {
-                    if (display[row + y][column + x] && !V[0xF]) V[0xF] = 1;
-                    display[row + y][column + x] = !display[row + y][column + x];
-                }
-                spriteRow <<= 1;
+    for (size_t row = 0; row < N; ++row) {
+        if (row + y > 31) break;
+        unsigned char spriteRow = readByte(I + row);
+        for (size_t column = 0; column < 8; ++column) {
+            if (column + x > 63) break;
+            if (spriteRow & 0b10000000) {
+                if (display[row + y][column + x] && !V[0xF]) V[0xF] = 1;
+                display[row + y][column + x] = !display[row + y][column + x];
             }
+            spriteRow <<= 1;
         }
+    }
 }
 
 void CHIP_8::getKey(const unsigned char X) {
@@ -145,33 +145,33 @@ void CHIP_8::getKey(const unsigned char X) {
 }
 
 void CHIP_8::addWithCarry(unsigned char X, unsigned char Y) {
-    bool carry = V[X] > 0xFF - V[Y];
+    const bool carry = V[X] > 0xFF - V[Y];
     V[X] += V[Y];
     V[0xF] = carry;
 }
 
 void CHIP_8::subtractXY(unsigned char X, unsigned char Y) {
-    bool carry = V[X] >= V[Y];
+    const bool carry = V[X] >= V[Y];
     V[X] -= V[Y];
     V[0xF] = carry;
 }
 
 void CHIP_8::subtractYX(unsigned char X, unsigned char Y) {
-    bool carry = (V[Y] >= V[X]);
+    const bool carry = (V[Y] >= V[X]);
     V[X] = V[Y] - V[X];
     V[0xF] = carry;
 }
 
 void CHIP_8::shiftRight(unsigned char X, unsigned char Y) {
     if (oldBehavior) V[X] = V[Y];
-    bool ejectedBit = V[X] & 0x1;
+    const bool ejectedBit = V[X] & 0x1;
     V[X] >>= 1;
     V[0xF] = ejectedBit;
 }
 
 void CHIP_8::shiftLeft(unsigned char X, unsigned char Y) {
     if (oldBehavior) V[X] = V[Y];
-    bool ejectedBit = V[X] >> 7;
+    const bool ejectedBit = V[X] >> 7;
     V[X] <<= 1;
     V[0xF] = ejectedBit;
 }
@@ -185,7 +185,7 @@ void CHIP_8::jumpWithOffset(unsigned char X, uint8_t NN) {
 }
 
 void CHIP_8::addToIndex(unsigned char X) {
-    bool carry = !oldBehavior && V[X] > 0xFFF - I;
+    const bool carry = !oldBehavior && V[X] > 0xFFF - I;
     I += V[X];
     V[0xF] = carry;
 }
@@ -419,4 +419,3 @@ void CHIP_8::toggleKey(const uint16_t keycode) {
     oldKeypad = keypad;
     keypad ^= keycode;
 }
-
