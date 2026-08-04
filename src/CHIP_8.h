@@ -29,13 +29,27 @@ class CHIP_8 {
     [[nodiscard]] bool keyIsPressed(uint16_t key) const;
     [[nodiscard]] bool keyWasPressed(uint16_t key) const;
     [[nodiscard]] unsigned char pollReleasedKey() const;
-    unsigned char pollPressedKey() const;
+    [[nodiscard]] unsigned char pollPressedKey() const;
     uint16_t popFromAddressStack();
     void clearScreen();
     [[nodiscard]] unsigned char readByte(size_t address) const;
     [[nodiscard]] unsigned short int readInstruction(size_t address) const;
     void writeByte(size_t address, unsigned char value);
     void drawSprite(unsigned char X, unsigned char Y, unsigned char N);
+    void getKey(unsigned char X);
+    void addWithCarry(unsigned char X, unsigned char Y);
+    void subtractXY(unsigned char X, unsigned char Y);
+    void subtractYX(unsigned char X, unsigned char Y);
+    void shiftRight(unsigned char X, unsigned char Y);
+    void shiftLeft(unsigned char X, unsigned char Y);
+    void oldJumpWithOffset(uint16_t NNN);
+    void jumpWithOffset(unsigned char X, uint8_t NN);
+    void addToIndex(unsigned char X);
+    void binaryCodedDecimal(unsigned char X);
+    void writeRegisters(unsigned char X);
+    void readRegisters(unsigned char X);
+
+    static void throwInstructionError(uint8_t instruction);
 
     public:
     explicit CHIP_8(bool oldBehavior);

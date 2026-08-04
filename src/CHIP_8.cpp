@@ -115,17 +115,17 @@ void CHIP_8::writeByte(const size_t address, const unsigned char value) {
 }
 
 void CHIP_8::drawSprite(const unsigned char X, const unsigned char Y, const unsigned char N) {
-        //0xDXYN Display
-        unsigned char x = V[X] % 64;
-        unsigned char y = V[Y] % 32;
+        const unsigned char x = V[X] % 64;
+        const unsigned char y = V[Y] % 32;
         V[0xF] = 0;
+
         for (size_t row = 0; row < N; ++row) {
             if (row + y > 31) break;
             unsigned char spriteRow = readByte(I + row);
             for (size_t column = 0; column < 8; ++column) {
                 if (column + x > 63) break;
                 if (spriteRow & 0b10000000) {
-                    if (display[row + y][column + x] && V[0xF] == 0) V[0xF] = 1;
+                    if (display[row + y][column + x] && !V[0xF]) V[0xF] = 1;
                     display[row + y][column + x] = !display[row + y][column + x];
                 }
                 spriteRow <<= 1;
@@ -133,24 +133,110 @@ void CHIP_8::drawSprite(const unsigned char X, const unsigned char Y, const unsi
         }
 }
 
+void CHIP_8::getKey(const unsigned char X) {
+    if (awaitedKey > 0xF) {
+        awaitedKey = pollPressedKey();
+    } else if (const unsigned char key = pollReleasedKey(); key == awaitedKey)  {
+        V[X] = key;
+        awaitedKey = 0xFF;
+        return;
+    }
+    jumpProgramCounter(PC - 2);
+}
+
+void CHIP_8::addWithCarry(unsigned char X, unsigned char Y) {
+    bool carry = V[X] > 0xFF - V[Y];
+    V[X] += V[Y];
+    V[0xF] = carry;
+}
+
+void CHIP_8::subtractXY(unsigned char X, unsigned char Y) {
+    bool carry = V[X] >= V[Y];
+    V[X] -= V[Y];
+    V[0xF] = carry;
+}
+
+void CHIP_8::subtractYX(unsigned char X, unsigned char Y) {
+    bool carry = (V[Y] >= V[X]);
+    V[X] = V[Y] - V[X];
+    V[0xF] = carry;
+}
+
+void CHIP_8::shiftRight(unsigned char X, unsigned char Y) {
+    if (oldBehavior) V[X] = V[Y];
+    bool ejectedBit = V[X] & 0x1;
+    V[X] >>= 1;
+    V[0xF] = ejectedBit;
+}
+
+void CHIP_8::shiftLeft(unsigned char X, unsigned char Y) {
+    if (oldBehavior) V[X] = V[Y];
+    bool ejectedBit = V[X] >> 7;
+    V[X] <<= 1;
+    V[0xF] = ejectedBit;
+}
+
+void CHIP_8::oldJumpWithOffset(uint16_t NNN) {
+        jumpProgramCounter(NNN + V[0]);
+}
+
+void CHIP_8::jumpWithOffset(unsigned char X, uint8_t NN) {
+        jumpProgramCounter(NN + V[X]);
+}
+
+void CHIP_8::addToIndex(unsigned char X) {
+    bool carry = !oldBehavior && V[X] > 0xFFF - I;
+    I += V[X];
+    V[0xF] = carry;
+}
+
+void CHIP_8::binaryCodedDecimal(unsigned char X) {
+    writeByte(I, V[X]/100);
+    writeByte(I + 1, (V[X] / 10) % 10);
+    writeByte(I + 2, V[X] % 10);
+}
+
+void CHIP_8::writeRegisters(unsigned char X) {
+    for (size_t n = 0; n <= X; ++n) {
+        if (oldBehavior) {
+            writeByte(I++, V[n]);
+        } else {
+            writeByte(I + n, V[n]);
+        }
+    }
+}
+
+void CHIP_8::readRegisters(unsigned char X) {
+    for (size_t n = 0; n <= X; ++n) {
+        if (oldBehavior) {
+            V[n] = readByte(I++);
+        } else {
+            V[n] = readByte(I + n);
+        }
+    }
+}
+
+void CHIP_8::throwInstructionError(const uint8_t instruction) {
+    std::stringstream error;
+    error << "Unknown instruction 0x" << std::hex << instruction;
+    throw std::out_of_range(error.str());
+}
+
 void CHIP_8::stepForward() {
     //Fetch the instruction and increment the program counter
-    unsigned short int instruction = readInstruction(PC);
+    const uint16_t instruction = readInstruction(PC);
     jumpProgramCounter(PC + 2);
 
     //Catch NOP
     if (instruction == 0x0000) return;
 
     //Extract important bytes using bit masks and shifts
-    unsigned char opcode = instruction >> 12;
-    unsigned char X = (instruction & 0x0F00) >> 8;
-    unsigned char Y = (instruction & 0x00F0) >> 4;
-    unsigned char N = (instruction & 0x000F);
-    uint8_t NN = instruction & 0x00FF;
-    uint16_t NNN = instruction & 0x0FFF;
-
-    bool carry;
-    uint16_t releasedKey;
+    const unsigned char opcode = instruction >> 12;
+    const unsigned char X = (instruction & 0x0F00) >> 8;
+    const unsigned char Y = (instruction & 0x00F0) >> 4;
+    const unsigned char N = (instruction & 0x000F);
+    const uint8_t NN = instruction & 0x00FF;
+    const uint16_t NNN = instruction & 0x0FFF;
 
     //Decode and execute opcode
     switch (opcode) {
@@ -163,9 +249,7 @@ void CHIP_8::stepForward() {
                     PC = popFromAddressStack();
                     break;
                 default:
-                    std::stringstream error;
-                    error << "Unknown instruction 0x" << std::hex << instruction;
-                    throw std::out_of_range(error.str());
+                    throwInstructionError(instruction);
             }
             break;
         case 0x1:           //0x1NNN Jump
@@ -205,36 +289,22 @@ void CHIP_8::stepForward() {
                     V[X] ^= V[Y];
                     break;
                 case 0x4:   //0x8XY4 Add (with carry flag)
-                    carry = V[X] > 0xFF - V[Y];
-                    V[X] += V[Y];
-                    V[0xF] = carry;
+                    addWithCarry(X, Y);
                     break;
                 case 0x5:   //0x8XY5 Subtract VX - VY
-                    carry = V[X] >= V[Y];
-                    V[X] -= V[Y];
-                    V[0xF] = carry;
+                    subtractXY(X, Y);
                     break;
                 case 0x6:   //0x8XY6 Shift Right
-                    if (oldBehavior) V[X] = V[Y];
-                    carry = V[X] & 0x1;
-                    V[X] >>= 1;
-                    V[0xF] = carry;
+                    shiftRight(X, Y);
                     break;
                 case 0x7:   //0x8XY7 Subtract VY - VX
-                    carry = (V[Y] >= V[X]);
-                    V[X] = V[Y] - V[X];
-                    V[0xF] = carry;
+                    subtractYX(X, Y);
                     break;
                 case 0xE:   //0x8XYE Shift Left
-                    if (oldBehavior) V[X] = V[Y];
-                    carry = V[X] >> 7;
-                    V[X] <<= 1;
-                    V[0xF] = carry;
+                    shiftLeft(X, Y);
                     break;
                 default:
-                    std::stringstream error;
-                    error << "Unknown instruction 0x" << std::hex << instruction;
-                    throw std::out_of_range(error.str());
+                    throwInstructionError(instruction);
             }
             break;
         case 0x9:           //0x9XY0 Branch if VX != VY
@@ -244,11 +314,7 @@ void CHIP_8::stepForward() {
             I = NNN;
             break;
         case 0xB:           //0xBNNN/0xBXNN Jump with Offset
-            if (oldBehavior) {
-                jumpProgramCounter(NNN + V[0]);
-            } else {
-                jumpProgramCounter(NNN + V[X]);
-            }
+            oldBehavior ? oldJumpWithOffset(NNN) : jumpWithOffset(X, NN);
             break;
         case 0xC:           //0xCXNN Random
             V[X] = dist(gen) & NN;
@@ -265,9 +331,7 @@ void CHIP_8::stepForward() {
                     if (!keyIsPressed(V[X])) jumpProgramCounter(PC + 2);
                     break;
                 default:
-                    std::stringstream error;
-                    error << "Unknown instruction 0x" << std::hex << instruction;
-                    throw std::out_of_range(error.str());
+                    throwInstructionError(instruction);
             }
             break;
         case 0xF:
@@ -282,56 +346,29 @@ void CHIP_8::stepForward() {
                     soundTimer = V[X];
                     break;
                 case 0x1E:  //0xFX1E Add to index
-                    carry = (!oldBehavior && V[X] > 0xFFF - I) ? true : false;
-                    I += V[X];
-                    V[0xF] = carry;
+                    addToIndex(X);
                     break;
                 case 0x0A:  //0xFX0A Get key
-                    if (awaitedKey > 0xF) awaitedKey = pollPressedKey();
-                    releasedKey = pollReleasedKey();
-                    if (releasedKey <= 0xF && releasedKey == awaitedKey) {
-                        V[X] = releasedKey;
-                        awaitedKey = 0xFF;
-                    } else {
-                        jumpProgramCounter(PC - 2);
-                    }
+                    getKey(X);
                     break;
                 case 0x29:  //0xFX29 Font character
                     I = (V[X] & 0x0F) * 5 + FONT_OFFSET;
                     break;
                 case 0x33:  //0xFX33 Binary-coded decimal conversion
-                    writeByte(I, V[X]/100);
-                    writeByte(I + 1, (V[X] / 10) % 10);
-                    writeByte(I + 2, V[X] % 10);
+                    binaryCodedDecimal(X);
                     break;
                 case 0x55:  //0xFX55 Store register to memory
-                    for (size_t n = 0; n <= X; ++n) {
-                        if (oldBehavior) {
-                            writeByte(I++, V[n]);
-                        } else {
-                            writeByte(I + n, V[n]);
-                        }
-                    }
+                    writeRegisters(X);
                     break;
                 case 0x65:  //0xFX65 Load register from memory
-                    for (size_t n = 0; n <= X; ++n) {
-                        if (oldBehavior) {
-                            V[n] = readByte(I++);
-                        } else {
-                            V[n] = readByte(I + n);
-                        }
-                    }
+                    readRegisters(X);
                     break;
                 default:
-                    std::stringstream error;
-                    error << "Unknown instruction 0x" << std::hex << instruction;
-                    throw std::out_of_range(error.str());
+                    throwInstructionError(instruction);
             }
             break;
         default:
-            std::stringstream error;
-            error << "Unknown instruction 0x" << std::hex << instruction;
-            throw std::out_of_range(error.str());
+            throwInstructionError(instruction);
     }
 }
 
